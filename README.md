@@ -4,6 +4,8 @@ This project is an immersive 3D simulation of a seaplane outpost, deployed as a 
 
 A custom-built, procedural environment featuring GLSL-based Gerstner water simulation, flight operations physics, and dynamic weather systems, all running in the browser.
 
+![Seaplane Outpost](assets/thumbnail.png)
+
 [▶ Open Live 3D Demo](https://studio-public-demos.github.io/seaplane-outpost-showcase/)
 
 ☁️ Powered by NebulaCloud Studio
@@ -49,7 +51,9 @@ NebulaCloud Studio handles the heavy lifting of 3D rendering, responsive design,
 📁 Project Structure
 ```
 .
-├── seaplane_outpost.html  # Main simulation + all assets
+├── index.html             # Main simulation + all assets
+├── assets/                # Images and resources
+│   └── thumbnail.png      # Preview screenshot
 ├── README.md              # This file
 └── .gitignore
 ```
@@ -62,7 +66,7 @@ NebulaCloud Studio handles the heavy lifting of 3D rendering, responsive design,
 git clone https://github.com/studio-public-demos/seaplane-outpost-showcase.git
 cd seaplane-outpost-showcase
 
-# Simply open seaplane_outpost.html in a modern web browser
+# Simply open index.html in a modern web browser
 ```
 
 🔗 Related Demos
