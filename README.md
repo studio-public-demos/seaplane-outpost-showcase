@@ -1,35 +1,5 @@
 # Seaplane Outpost — Interactive 3D Seaplane Outpost
 
-## PROJECT METADATA
-
-**Project title:**
-Seaplane Outpost: Interactive 3D Flight Simulation
-
-**Project subtitle:**
-A browser-native simulation of a seaplane outpost with real-time water physics and autonomous flight operations.
-
-**Project category:**
-Simulation & Interactive Visualization
-
-**Primary audience:**
-Aerospace Engineers, Simulation Specialists, 3D/Web Graphics Developers, Engineering Educators, Product Designers.
-
-**Relevant industries:**
-Aerospace, Simulation, Engineering Education, Industrial Design, Software Development.
-
-**Core value proposition:**
-It bridges the gap between complex flight and marine dynamics and accessible, browser-native deployment for rapid stakeholder communication.
-
-**Live demo URL:**
-[https://studio-public-demos.github.io/seaplane-outpost-showcase/](https://studio-public-demos.github.io/seaplane-outpost-showcase/)
-
-**GitHub URL:**
-[https://github.com/studio-public-demos/seaplane-outpost-showcase](https://github.com/studio-public-demos/seaplane-outpost-showcase)
-
-**Studio URL:**
-[https://nebulacloud.studio](https://nebulacloud.studio)
-
----
 
 This project is an immersive 3D simulation of a seaplane outpost, deployed as a demonstration of the capabilities enabled by NebulaCloud Studio.
 
