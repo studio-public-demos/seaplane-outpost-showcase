@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<title>Horizon — Discover the World</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
+@font-face{font-family:'Inter';font-display:fallback;src:local('Arial')}
+@font-face{font-family:'Playfair Display';font-display:fallback;src:local('Georgia')}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{font-family:'Inter',system-ui,sans-serif;background:#0a0a14;color:#e8e8f0;overflow-x:hidden;line-height:1.6}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0a0a14}::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:3px}
+
+:root{--accent:#6c5ce7;--accent2:#00cec9;--accent3:#fd79a8;--glass:rgba(10,10,30,.75);--glass-border:rgba(255,255,255,.08);--card-bg:rgba(20,20,50,.6);--nav-h:70px}
+a,button,input,select,textarea{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+
+/* ── Navigation ── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:1000;height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,5vw,60px);transition:background .4s,backdrop-filter .4s,box-shadow .4s}
+.nav.scrolled{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 1px 0 var(--glass-border)}
+.nav-logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:#fff;letter-spacing:-.01em;z-index:1001}
+.nav-logo span{color:var(--accent2)}
+.nav-links{display:flex;gap:28px;list-style:none;align-items:center}
+.nav-links a{color:#c0c0d0;text-decoration:none;font-size:.9rem;font-weight:500;transition:color .25s;letter-spacing:.01em}
+.nav-links a:hover,.nav-links a.active{color:#fff}
+.nav-cta{padding:9px 20px;background:var(--accent);color:#fff!important;border-radius:50px;font-weight:600!important;font-size:.85rem!important;transition:background .25s,box-shadow .25s}
+.nav-cta:hover{background:#7c6cf0;box-shadow:0 0 24px rgba(108,92,231,.4)}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;z-index:1001;background:none;border:none;padding:4px}
+.hamburger span{display:block;width:24px;height:2px;background:#fff;transition:.3s;border-radius:2px}
+.hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+.hamburger.active span:nth-child(2){opacity:0}
+.hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+
+/* ── Hero ── */
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(108,92,231,.15) 0%,transparent 60%),radial-gradient(ellipse at 70% 60%,rgba(0,206,201,.08) 0%,transparent 50%),linear-gradient(180deg,#0a0a18 0%,#0d0d28 50%,#0a0a14 100%)}
+#globe-container{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(600px,80vw);height:min(600px,80vw);pointer-events:none;z-index:1}
+.hero-content{position:relative;z-index:2;text-align:center;max-width:800px;padding:0 20px;margin-top:-40px}
+.hero-badge{display:inline-block;padding:6px 18px;border:1px solid rgba(255,255,255,.15);border-radius:50px;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:#a0a0c0;margin-bottom:24px;backdrop-filter:blur(10px);background:rgba(255,255,255,.03)}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(2.4rem,7vw,4.8rem);font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-bottom:20px;background:linear-gradient(135deg,#fff 0%,#c0c0e0 60%,var(--accent2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:clamp(1rem,2vw,1.2rem);color:#9090b0;max-width:520px;margin:0 auto 32px;line-height:1.7}
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{padding:14px 32px;border-radius:50px;font-weight:600;font-size:.95rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all .3s;border:none}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 20px rgba(108,92,231,.35)}
+.btn-primary:hover{background:#7c6cf0;transform:translateY(-2px);box-shadow:0 8px 32px rgba(108,92,231,.5)}
+.btn-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.2)}
+.btn-outline:hover{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.05)}
+.scroll-indicator{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:6px;color:#606080;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;animation:float 2.5s ease-in-out infinite}
+.scroll-indicator::after{content:'';width:1px;height:36px;background:linear-gradient(180deg,#606080,transparent)}
+@keyframes float{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+
+/* ── Sections ── */
+section{padding:clamp(60px,10vw,120px) clamp(16px,5vw,60px)}
+.section-label{text-align:center;font-size:.75rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent2);margin-bottom:12px;font-weight:600}
+.section-title{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;text-align:center;color:#fff;margin-bottom:16px;letter-spacing:-.01em}
+.section-subtitle{text-align:center;color:#7878a0;max-width:500px;margin:0 auto 48px;font-size:1rem;line-height:1.7}
+
+/* ── Destinations ── */
+.destinations-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;max-width:1200px;margin:0 auto;perspective:1200px}
+.dest-card{background:var(--card-bg);border-radius:20px;overflow:hidden;border:1px solid var(--glass-border);cursor:pointer;transition:transform .15s ease-out,box-shadow .3s;position:relative;transform-style:preserve-3d}
+.dest-card:hover{box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.dest-card-img{height:220px;background-size:cover;background-position:center;position:relative;transition:transform .4s}
+.dest-card:hover .dest-card-img{transform:scale(1.05)}
+.dest-card-img::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(10,10,20,.9) 100%)}
+.dest-card-badge{position:absolute;top:16px;right:16px;padding:5px 12px;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);border-radius:50px;font-size:.75rem;font-weight:600;color:#fff;z-index:1}
+.dest-card-body{padding:20px 22px 24px;position:relative;z-index:1}
+.dest-card-body h3{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:600;color:#fff;margin-bottom:6px}
+.dest-card-body .location{font-size:.82rem;color:var(--accent2);margin-bottom:12px;display:flex;align-items:center;gap:4px}
+.dest-card-body .desc{font-size:.88rem;color:#9090b0;line-height:1.6;margin-bottom:16px}
+.dest-card-footer{display:flex;justify-content:space-between;align-items:center}
+.dest-price{font-size:1.25rem;font-weight:700;color:#fff}.dest-price small{font-size:.75rem;color:#707090;font-weight:400}
+.dest-rating{display:flex;align-items:center;gap:4px;color:#f0c040;font-size:.85rem;font-weight:600}
+
+/* ── Stats ── */
+#stats{position:relative;overflow:hidden}
+#stats::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(108,92,231,.08) 0%,transparent 60%);pointer-events:none}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1000px;margin:0 auto}
+.stat-item{text-align:center;padding:32px 20px;background:var(--card-bg);border-radius:18px;border:1px solid var(--glass-border)}
+.stat-number{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:800;color:#fff;line-height:1}
+.stat-plus{color:var(--accent2)}.stat-label{font-size:.85rem;color:#7878a0;margin-top:6px}
+
+/* ── Testimonials ── */
+.testimonials-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px;max-width:1100px;margin:0 auto}
+.testimonial-card{background:var(--card-bg);border-radius:20px;padding:28px;border:1px solid var(--glass-border);transition:transform .3s,box-shadow .3s}
+.testimonial-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.testimonial-stars{color:#f0c040;font-size:.9rem;margin-bottom:14px;letter-spacing:2px}
+.testimonial-text{font-size:.95rem;color:#b0b0c8;line-height:1.7;margin-bottom:18px;font-style:italic}
+.testimonial-author{display:flex;align-items:center;gap:12px}
+.testimonial-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:#fff}
+.testimonial-name{font-weight:600;color:#fff;font-size:.9rem}.testimonial-trip{font-size:.78rem;color:#707090}
+
+/* ── CTA ── */
+#cta{text-align:center;position:relative;overflow:hidden}
+#cta::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(0,206,201,.1) 0%,transparent 60%);pointer-events:none}
+.cta-box{max-width:650px;margin:0 auto;padding:clamp(40px,6vw,72px) clamp(20px,4vw,40px);background:var(--card-bg);border-radius:28px;border:1px solid var(--glass-border);position:relative;z-index:1}
+.cta-box h2{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3.5vw,2.4rem);color:#fff;margin-bottom:12px}
+.cta-box p{color:#9090b0;margin-bottom:28px;font-size:1rem}
+.cta-form{display:flex;gap:10px;max-width:420px;margin:0 auto;flex-wrap:wrap;justify-content:center}
+.cta-form input{flex:1;min-width:200px;padding:14px 18px;border-radius:50px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;font-size:.9rem;outline:none;transition:border-color .3s}
+.cta-form input:focus{border-color:var(--accent2)}
+.cta-form input::placeholder{color:#606080}
+
+/* ── Footer ── */
+footer{padding:40px clamp(16px,5vw,60px);border-top:1px solid var(--glass-border);text-align:center;color:#606080;font-size:.82rem}
+.footer-grid{display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto 24px;flex-wrap:wrap;gap:16px}
+.footer-links{display:flex;gap:24px;list-style:none;flex-wrap:wrap;justify-content:center}
+.footer-links a{color:#7878a0;text-decoration:none;font-size:.85rem;transition:color .25s}
+.footer-links a:hover{color:#fff}
+.footer-social{display:flex;gap:14px}
+.footer-social a{width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#7878a0;text-decoration:none;transition:all .25s;font-size:.85rem}
+.footer-social a:hover{border-color:var(--accent2);color:var(--accent2);background:rgba(0,206,201,.08)}
+
+/* ── Animations ── */
+.fade-up{opacity:0;transform:translateY(40px);transition:opacity .7s ease,transform .7s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+
+/* ── Mobile menu backdrop ── */
+.nav-backdrop{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .35s ease}
+.nav-backdrop.visible{opacity:1;pointer-events:auto}
+
+/* ── Reduced motion ── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+
+/* ── Responsive ── */
+@media(max-width:1024px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:768px){
+  .nav-links{position:fixed;top:0;right:-100%;width:min(300px,85vw);height:100vh;height:100dvh;flex-direction:column;background:rgba(10,10,24,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);padding:clamp(80px,15vh,100px) 28px 28px;gap:20px;transition:right .35s cubic-bezier(.4,0,.2,1);border-left:1px solid var(--glass-border);overflow-y:auto;z-index:1000}
+  .nav-links.open{right:0}
+  .nav-links a{font-size:1.1rem;padding:8px 0;min-height:44px;display:flex;align-items:center}
+  .hamburger{display:flex;min-width:44px;min-height:44px;align-items:center;justify-content:center}
+  .hero-content{margin-top:0;padding:0 16px}
+  #globe-container{width:85vw;height:85vw;top:32%;opacity:.7}
+  .destinations-grid{grid-template-columns:1fr;max-width:440px;gap:18px}
+  .testimonials-grid{grid-template-columns:1fr;max-width:440px;gap:16px}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat-item{padding:22px 14px}
+  .footer-grid{flex-direction:column;text-align:center;gap:18px}
+  .scroll-indicator{bottom:20px;font-size:.65rem}
+  .hero-badge{font-size:.7rem;padding:5px 14px;margin-bottom:18px}
+  .hero p{font-size:.92rem;padding:0 8px}
+  .btn{padding:13px 26px;font-size:.9rem;min-height:48px}
+  .section-title{font-size:clamp(1.5rem,5vw,2rem)}
+  .section-subtitle{font-size:.9rem;padding:0 12px}
+  .dest-card{transform:none!important}
+  .dest-card:hover .dest-card-img{transform:none}
+}
+@media(max-width:480px){
+  .hero h1{font-size:clamp(1.7rem,7vw,2rem)}
+  .hero p br{display:none}
+  .hero-btns{flex-direction:column;align-items:stretch;width:100%;max-width:320px;margin:0 auto}
+  .hero-btns .btn{width:100%;justify-content:center}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .stat-item{padding:18px 10px;border-radius:14px}
+  .stat-number{font-size:clamp(1.5rem,5vw,2rem)}
+  .stat-label{font-size:.72rem}
+  .cta-form{flex-direction:column}
+  .cta-form input{width:100%;min-height:48px}
+  .cta-form .btn{width:100%;justify-content:center}
+  .dest-card-img{height:180px}
+  .testimonial-card{padding:20px}
+  .cta-box{padding:32px 18px;border-radius:20px}
+  #globe-container{width:92vw;height:92vw;top:30%;opacity:.55}
+  .nav-logo{font-size:1.3rem}
+  section{padding:48px 14px}
+  footer{padding:28px 14px}
+}
+@media(max-width:380px){
+  #globe-container{width:100vw;height:100vw;top:28%;opacity:.45}
+  .hero h1{font-size:1.55rem}
+  .hero-content{padding:0 10px}
+  .hero-badge{font-size:.65rem}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <a href="#" class="nav-logo">HORIZ<span>O</span>N</a>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#home" class="active">Home</a></li>
+    <li><a href="#destinations">Destinations</a></li>
+    <li><a href="#stats">Impact</a></li>
+    <li><a href="#testimonials">Reviews</a></li>
+    <li><a href="#cta" class="nav-cta">Book Now</a></li>
+  </ul>
+  <button class="hamburger" id="hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="nav-backdrop" id="navBackdrop"></div>
+
+<section class="hero" id="home">
+  <div class="hero-bg"></div>
+  <div id="globe-container"></div>
+  <canvas id="stars-canvas" style="position:absolute;inset:0;z-index:1;pointer-events:none"></canvas>
+  <div class="hero-content">
+    <div class="hero-badge">Curated Experiences Since 2012</div>
+    <h1>Explore Beyond<br>the Horizon</h1>
+    <p>Immerse yourself in handpicked destinations across 40+ countries. From the fjords of Norway to the temples of Kyoto — your next story begins here.</p>
+    <div class="hero-btns">
+      <a href="#destinations" class="btn btn-primary">Discover Destinations</a>
+      <a href="#cta" class="btn btn-outline">Plan Your Trip</a>
+    </div>
+  </div>
+  <div class="scroll-indicator">Scroll to explore</div>
+</section>
+
+<section id="destinations">
+  <div class="section-label fade-up">Destinations</div>
+  <h2 class="section-title fade-up">Where Dreams Take Flight</h2>
+  <p class="section-subtitle fade-up">Each journey is crafted with care — from boutique stays to hidden trails only locals know.</p>
+  <div class="destinations-grid" id="destinationsGrid"></div>
+</section>
+
+<section id="stats">
+  <div class="stats-grid">
+    <div class="stat-item fade-up"><div class="stat-number"><span class="stat-plus" data-count="12">0</span>K+</div><div class="stat-label">Happy Travelers</div></div>
+    <div class="stat-item fade-up"><div class="stat-number"><span class="stat-plus" data-count="45">0</span>+</div><div class="stat-label">Countries</div></div>
+    <div class="stat-item fade-up"><div class="stat-number"><span class="stat-plus" data-count="250">0</span>+</div><div class="stat-label">Curated Tours</div></div>
+    <div class="stat-item fade-up"><div class="stat-number"><span class="stat-plus" data-count="98">0</span>%</div><div class="stat-label">Satisfaction</div></div>
+  </div>
+</section>
+
+<section id="testimonials">
+  <div class="section-label fade-up">Testimonials</div>
+  <h2 class="section-title fade-up">Loved by Adventurers</h2>
+  <p class="section-subtitle fade-up">Real stories from travelers who said yes to the journey.</p>
+  <div class="testimonials-grid">
+    <div class="testimonial-card fade-up"><div class="testimonial-stars">★★★★★</div><p class="testimonial-text">"The Northern Lights tour in Tromsø was absolutely magical. Horizon handled every detail — from the glass igloo stay to the dog sledding. Truly once in a lifetime."</p><div class="testimonial-author"><div class="testimonial-avatar">SB</div><div><div class="testimonial-name">Sarah Bennett</div><div class="testimonial-trip">Norway · Northern Lights Tour</div></div></div></div>
+    <div class="testimonial-card fade-up"><div class="testimonial-stars">★★★★★</div><p class="testimonial-text">"Our honeymoon in Bali exceeded every expectation. The private villa, the rice terrace breakfast, the temple tours — everything was curated to perfection."</p><div class="testimonial-author"><div class="testimonial-avatar">JM</div><div><div class="testimonial-name">James &amp; Mia</div><div class="testimonial-trip">Bali · Honeymoon Package</div></div></div></div>
+    <div class="testimonial-card fade-up"><div class="testimonial-stars">★★★★★</div><p class="testimonial-text">"I've been to Patagonia with three different companies, and Horizon was hands-down the best. The local guides knew every hidden trail and the eco-lodges were stunning."</p><div class="testimonial-author"><div class="testimonial-avatar">RK</div><div><div class="testimonial-name">Raj Kapoor</div><div class="testimonial-trip">Chile · Patagonia Trek</div></div></div></div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="cta-box fade-up">
+    <div class="section-label">Start Your Journey</div>
+    <h2>Ready to Explore?</h2>
+    <p>Join 12,000+ travelers. Get curated trip ideas and exclusive deals delivered to your inbox.</p>
+    <div class="cta-form">
+      <input type="email" placeholder="your@email.com">
+      <button class="btn btn-primary" onclick="alert('Welcome aboard! Check your inbox.')">Get Inspired</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-grid">
+    <a href="#" class="nav-logo" style="font-size:1.3rem">HORIZ<span>O</span>N</a>
+    <ul class="footer-links"><li><a href="#home">Home</a></li><li><a href="#destinations">Destinations</a></li><li><a href="#testimonials">Reviews</a></li><li><a href="#cta">Contact</a></li></ul>
+    <div class="footer-social"><a href="#" title="Instagram">IG</a><a href="#" title="Twitter">TW</a><a href="#" title="YouTube">YT</a></div>
+  </div>
+  <p>&copy; 2026 Horizon Travel Co. Crafted for wanderers.</p>
+</footer>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+// ─── 3D Globe ───
+const container = document.getElementById('globe-container');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+camera.position.z = 4.2;
+
+const renderer = new THREE.WebGLRenderer({ antialias: !isTouchDevice, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouchDevice ? 1.5 : 2));
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setClearColor(0x000000, 0);
+container.appendChild(renderer.domElement);
+
+const globeSegments = isTouchDevice ? 40 : 64;
+const wireSegments = isTouchDevice ? 28 : 48;
+
+// Globe sphere
+const globeGeom = new THREE.SphereGeometry(1.28, globeSegments, globeSegments);
+const globeMat = new THREE.MeshPhongMaterial({
+  color: 0x1a1a3e,
+  emissive: 0x0a0a20,
+  specular: 0x222255,
+  shininess: 8,
+  transparent: true,
+  opacity: 0.92
+});
+const globe = new THREE.Mesh(globeGeom, globeMat);
+scene.add(globe);
+
+// Wireframe overlay
+const wireGeom = new THREE.SphereGeometry(1.3, wireSegments, wireSegments);
+const wireMat = new THREE.MeshBasicMaterial({ color: 0x3a3a6a, wireframe: true, transparent: true, opacity: 0.12 });
+const wireframe = new THREE.Mesh(wireGeom, wireMat);
+scene.add(wireframe);
+
+// Destination markers (lat/lng -> 3D coords)
+const destinations = [
+  { name:'Bali', lat:-8.34, lng:115.1, color:0x00cec9 },
+  { name:'Tokyo', lat:35.68, lng:139.76, color:0xfd79a8 },
+  { name:'Paris', lat:48.86, lng:2.35, color:0xffeaa7 },
+  { name:'New York', lat:40.71, lng:-74.01, color:0x6c5ce7 },
+  { name:'Cape Town', lat:-33.92, lng:18.42, color:0x00cec9 },
+  { name:'Sydney', lat:-33.87, lng:151.21, color:0xfd79a8 },
+  { name:'Rio', lat:-22.91, lng:-43.20, color:0xffeaa7 },
+  { name:'Dubai', lat:25.20, lng:55.27, color:0x6c5ce7 },
+  { name:'Reykjavik', lat:64.15, lng:-21.94, color:0x00cec9 },
+  { name:'Machu Picchu', lat:-13.16, lng:-72.54, color:0xffeaa7 },
+  { name:'Santorini', lat:36.39, lng:25.46, color:0xfd79a8 },
+  { name:'Bangkok', lat:13.76, lng:100.50, color:0x6c5ce7 },
+];
+
+const markers = [];
+destinations.forEach(d => {
+  const phi = (90 - d.lat) * Math.PI / 180;
+  const theta = (d.lng + 180) * Math.PI / 180;
+  const r = 1.31;
+  const x = -r * Math.sin(phi) * Math.cos(theta);
+  const y = r * Math.cos(phi);
+  const z = r * Math.sin(phi) * Math.sin(theta);
+
+  const dotGeom = new THREE.SphereGeometry(0.028, 16, 16);
+  const dotMat = new THREE.MeshBasicMaterial({ color: d.color });
+  const dot = new THREE.Mesh(dotGeom, dotMat);
+  dot.position.set(x, y, z);
+  dot.userData = { color: d.color, baseY: y, baseX: x, baseZ: z, phase: Math.random() * Math.PI * 2 };
+  globe.add(dot);
+  markers.push(dot);
+
+  // Ring
+  const ringGeom = new THREE.TorusGeometry(0.04, 0.006, 8, 24);
+  const ringMat = new THREE.MeshBasicMaterial({ color: d.color, transparent: true, opacity: 0.7 });
+  const ring = new THREE.Mesh(ringGeom, ringMat);
+  ring.position.copy(dot.position);
+  ring.lookAt(new THREE.Vector3(0, 0, 0));
+  ring.userData = { phase: Math.random() * Math.PI * 2 };
+  globe.add(ring);
+  markers.push(ring);
+});
+
+// Atmosphere glow
+const atmosGeom = new THREE.SphereGeometry(1.35, wireSegments, wireSegments);
+const atmosMat = new THREE.ShaderMaterial({
+  vertexShader: `varying vec3 vNormal;void main(){vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `varying vec3 vNormal;void main(){float i=pow(0.62-dot(vNormal,vec3(0.0,0.0,1.0)),3.5);gl_FragColor=vec4(0.42,0.36,0.91,i*0.35);}`,
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
+});
+const atmosphere = new THREE.Mesh(atmosGeom, atmosMat);
+scene.add(atmosphere);
+
+// Lights
+const ambientLight = new THREE.AmbientLight(0x333366, 1.8);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.6);
+directionalLight.position.set(3, 2, 4);
+scene.add(directionalLight);
+const pointLight = new THREE.PointLight(0x6c5ce7, 2, 6);
+pointLight.position.set(2, 1, 3);
+scene.add(pointLight);
+
+// Mouse tracking
+let mouseX = 0, mouseY = 0, targetMX = 0, targetMY = 0;
+document.addEventListener('mousemove', e => {
+  targetMX = (e.clientX / window.innerWidth) * 2 - 1;
+  targetMY = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+document.addEventListener('touchmove', e => {
+  if (e.touches.length) {
+    targetMX = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+    targetMY = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+  }
+}, { passive: true });
+
+// ─── Stars Canvas ───
+const starsCanvas = document.getElementById('stars-canvas');
+const starsCtx = starsCanvas.getContext('2d');
+let stars = [];
+
+function resizeStars() {
+  starsCanvas.width = window.innerWidth;
+  starsCanvas.height = window.innerHeight;
+  const count = isTouchDevice ? 80 : 160;
+  stars = Array.from({ length: count }, () => ({
+    x: Math.random() * starsCanvas.width,
+    y: Math.random() * starsCanvas.height,
+    r: Math.random() * 1.5 + 0.4,
+    speed: Math.random() * 0.25 + 0.1,
+    opacity: Math.random() * 0.6 + 0.2,
+    phase: Math.random() * Math.PI * 2
+  }));
+}
+resizeStars();
+
+function drawStars(time) {
+  starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+  stars.forEach(s => {
+    const alpha = s.opacity + Math.sin(time * 0.001 + s.phase) * 0.3;
+    starsCtx.beginPath();
+    starsCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    starsCtx.fillStyle = `rgba(180,180,220,${Math.max(0.1, alpha)})`;
+    starsCtx.fill();
+    s.y -= s.speed;
+    if (s.y < -5) { s.y = starsCanvas.height + 5; s.x = Math.random() * starsCanvas.width; }
+  });
+}
+
+// ─── Render loop ───
+let animRunning = true;
+const clock = new THREE.Clock();
+function animate() {
+  if (!animRunning) { requestAnimationFrame(animate); return; }
+  requestAnimationFrame(animate);
+  const t = performance.now() * 0.001;
+
+  mouseX += (targetMX - mouseX) * 0.04;
+  mouseY += (targetMY - mouseY) * 0.04;
+
+  globe.rotation.y += 0.0018;
+  globe.rotation.x += mouseY * 0.003;
+  globe.rotation.y += mouseX * 0.003;
+  wireframe.rotation.copy(globe.rotation);
+  atmosphere.rotation.copy(globe.rotation);
+
+  markers.forEach(m => {
+    if (m.geometry.type === 'SphereGeometry') {
+      const s = 1 + Math.sin(t * 3 + m.userData.phase) * 0.35;
+      m.scale.setScalar(s);
+    }
+    if (m.geometry.type === 'TorusGeometry') {
+      const s = 1 + Math.sin(t * 2.5 + m.userData.phase) * 0.4;
+      m.scale.setScalar(s);
+      m.material.opacity = 0.4 + Math.sin(t * 3 + m.userData.phase) * 0.3;
+    }
+  });
+
+  renderer.render(scene, camera);
+  drawStars(t * 1000);
+}
+animate();
+
+// Pause rendering when page is hidden (save battery on mobile)
+document.addEventListener('visibilitychange', () => {
+  animRunning = !document.hidden;
+});
+
+// Handle resize
+function onResize() {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / (h || 1);
+  camera.updateProjectionMatrix();
+  resizeStars();
+}
+window.addEventListener('resize', onResize);
+
+// ─── UI Interactions ───
+const nav = document.getElementById('nav');
+const hamburger = document.getElementById('hamburger');
+const navLinks = document.getElementById('navLinks');
+const sections = document.querySelectorAll('section[id]');
+const navAnchors = document.querySelectorAll('.nav-links a:not(.nav-cta)');
+
+// Mobile menu
+const navBackdrop = document.getElementById('navBackdrop');
+
+function openMenu() {
+  hamburger.classList.add('active');
+  navLinks.classList.add('open');
+  navBackdrop.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+function closeMenu() {
+  hamburger.classList.remove('active');
+  navLinks.classList.remove('open');
+  navBackdrop.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+hamburger.addEventListener('click', () => {
+  navLinks.classList.contains('open') ? closeMenu() : openMenu();
+});
+
+navBackdrop.addEventListener('click', closeMenu);
+
+navLinks.querySelectorAll('a').forEach(a => {
+  a.addEventListener('click', closeMenu);
+});
+
+// Close menu on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && navLinks.classList.contains('open')) closeMenu();
+});
+
+// Scroll spy
+function updateActiveNav() {
+  const scrollY = window.scrollY + 100;
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+
+  let current = '';
+  sections.forEach(s => {
+    if (scrollY >= s.offsetTop && scrollY < s.offsetTop + s.offsetHeight) {
+      current = s.id;
+    }
+  });
+  navAnchors.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === `#${current}`);
+  });
+}
+window.addEventListener('scroll', updateActiveNav, { passive: true });
+
+// Fade-up on scroll
+const fadeEls = document.querySelectorAll('.fade-up');
+const fadeObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      fadeObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.15 });
+fadeEls.forEach(el => fadeObserver.observe(el));
+
+// Counter animation
+const statNumbers = document.querySelectorAll('.stat-plus[data-count]');
+const statObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const el = entry.target;
+    const target = parseInt(el.dataset.count);
+    const duration = 1800;
+    const start = performance.now();
+    function tick(now) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.round(target * eased);
+      if (progress < 1) requestAnimationFrame(tick);
+      else el.textContent = target;
+    }
+    requestAnimationFrame(tick);
+    statObserver.unobserve(el);
+  });
+}, { threshold: 0.5 });
+statNumbers.forEach(el => statObserver.observe(el));
+
+// ─── 3D Card Tilt (desktop only) ───
+if (!isTouchDevice) {
+  document.querySelectorAll('.dest-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      const rotateX = ((y - cy) / cy) * -8;
+      const rotateY = ((x - cx) / cx) * 8;
+      card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02,1.02,1.02)`;
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale3d(1,1,1)';
+    });
+  });
+}
+
+// ─── Populate Destinations ───
+const destData = [
+  { name:'Santorini', location:'Greece', img:'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=600&q=80', desc:'Whitewashed villages perched on volcanic cliffs overlooking the Aegean Sea.', price:1899, rating:4.9, badge:'Bestseller' },
+  { name:'Kyoto', location:'Japan', img:'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&q=80', desc:'Ancient temples, bamboo groves, and the art of the tea ceremony.', price:2199, rating:4.8, badge:'Cultural' },
+  { name:'Bali', location:'Indonesia', img:'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&q=80', desc:'Tropical paradise with rice terraces, temples, and world-class surfing.', price:1499, rating:4.7, badge:'Popular' },
+  { name:'Swiss Alps', location:'Switzerland', img:'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=600&q=80', desc:'Jagged peaks, crystal lakes, and charming alpine villages year-round.', price:2899, rating:4.9, badge:'Premium' },
+  { name:'Marrakech', location:'Morocco', img:'https://images.unsplash.com/photo-1597212618440-806262de4f6b?w=600&q=80', desc:'Vibrant souks, ornate riads, and the magic of the Sahara at sunset.', price:1299, rating:4.6 },
+  { name:'Queenstown', location:'New Zealand', img:'https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=600&q=80', desc:'Adrenaline capital of the world, surrounded by fjords and mountains.', price:2599, rating:4.8, badge:'Adventure' },
+];
+
+const destGrid = document.getElementById('destinationsGrid');
+destGrid.innerHTML = destData.map((d,i) => `
+  <div class="dest-card fade-up" style="transition-delay:${i*0.08}s">
+    <div class="dest-card-img" style="background-image:url('${d.img}')">
+      ${d.badge ? `<span class="dest-card-badge">${d.badge}</span>` : ''}
+    </div>
+    <div class="dest-card-body">
+      <h3>${d.name}</h3>
+      <div class="location">📍 ${d.location}</div>
+      <p class="desc">${d.desc}</p>
+      <div class="dest-card-footer">
+        <div class="dest-price"><small>From </small>$${d.price.toLocaleString()}</div>
+        <div class="dest-rating">⭐ ${d.rating}</div>
+      </div>
+    </div>
+  </div>
+`).join('');
+
+// Re-attach tilt & observe to newly created cards (desktop only)
+setTimeout(() => {
+  if (!isTouchDevice) {
+    document.querySelectorAll('.dest-card').forEach(card => {
+      if (card.dataset.tilt) return;
+      card.dataset.tilt = '1';
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const rotateX = ((y - cy) / cy) * -8;
+        const rotateY = ((x - cx) / cx) * 8;
+        card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02,1.02,1.02)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale3d(1,1,1)';
+      });
+    });
+  }
+  document.querySelectorAll('.dest-card.fade-up').forEach(el => fadeObserver.observe(el));
+}, 100);
+
+updateActiveNav();
+</script>
+</body>
+</html>

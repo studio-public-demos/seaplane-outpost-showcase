@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sponza Palace - 3D Monument Viewer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a14; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+canvas { display: block; }
+
+#loading {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; background: #0a0a14;
+  z-index: 200; transition: opacity 0.5s ease-out; color: #c8b898;
+}
+#loading.hidden { opacity: 0; pointer-events: none; }
+#loading .ring { width: 44px; height: 44px; border: 2px solid rgba(200,184,152,0.12); border-top-color: #c8a050; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading p { margin-top: 14px; font-size: 12px; letter-spacing: 2.5px; opacity: 0.7; font-weight: 300; }
+#loading .sub { font-size: 10px; opacity: 0.4; margin-top: 4px; letter-spacing: 1px; }
+
+#info-panel {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  background: rgba(10,10,20,0.88); backdrop-filter: blur(10px);
+  border: 1px solid rgba(200,168,80,0.2); border-radius: 10px;
+  padding: 10px 22px; z-index: 15; color: #c8b898; text-align: center;
+  pointer-events: none;
+}
+#info-panel h2 { font-size: 15px; font-weight: 400; letter-spacing: 2px; }
+#info-panel span { font-size: 9px; opacity: 0.5; display: block; margin-top: 2px; letter-spacing: 1px; }
+
+#hint {
+  position: fixed; bottom: 162px; left: 50%; transform: translateX(-50%);
+  color: rgba(200,184,152,0.3); font-size: 10px; letter-spacing: 1px;
+  z-index: 10; pointer-events: none; transition: opacity 0.5s;
+}
+
+#preset-label {
+  position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%);
+  color: rgba(200,184,152,0.55); font-size: 9px; letter-spacing: 2.5px;
+  z-index: 21; pointer-events: none; text-transform: uppercase;
+}
+
+#preset-strip {
+  position: fixed; bottom: 108px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 4px; z-index: 21; max-width: 95vw;
+  overflow-x: auto; padding: 2px 2px; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#preset-strip::-webkit-scrollbar { display: none; }
+#preset-strip button {
+  background: rgba(10,10,20,0.88); backdrop-filter: blur(8px);
+  border: 1px solid rgba(200,168,80,0.18); color: #c8b898;
+  padding: 5px 10px; border-radius: 6px; cursor: pointer;
+  font-size: 9px; font-family: inherit; letter-spacing: 0.5px;
+  transition: all 0.15s; white-space: nowrap; min-height: 30px;
+  flex-shrink: 0;
+}
+#preset-strip button:hover { background: rgba(200,168,80,0.12); border-color: rgba(200,168,80,0.4); }
+#preset-strip button.active { background: rgba(200,168,80,0.25); border-color: #c8a050; color: #e0d0b0; }
+
+#sliders-row {
+  position: fixed; bottom: 68px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; z-index: 21;
+  background: rgba(10,10,20,0.85); backdrop-filter: blur(8px);
+  border: 1px solid rgba(200,168,80,0.15); border-radius: 10px;
+  padding: 6px 14px; max-width: 95vw;
+}
+#sliders-row label { color: rgba(200,184,152,0.5); font-size: 8px; letter-spacing: 1px; white-space: nowrap; }
+#sliders-row input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 60px; height: 3px;
+  background: rgba(200,168,80,0.2); border-radius: 2px; outline: none; cursor: pointer;
+}
+#sliders-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: #c8a050; cursor: pointer; border: none;
+}
+#sliders-row .val { color: rgba(200,184,152,0.35); font-size: 8px; min-width: 20px; text-align: right; }
+#sliders-row .sep { width: 1px; height: 14px; background: rgba(200,168,80,0.15); }
+#sliders-row .toggle-label {
+  color: rgba(200,184,152,0.5); font-size: 8px; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;
+}
+#sliders-row .toggle-label input { cursor: pointer; accent-color: #c8a050; width: 12px; height: 12px; }
+
+#controls {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 6px; z-index: 20; flex-wrap: wrap; justify-content: center;
+  padding: 0 8px; max-width: 100vw;
+}
+#controls button {
+  background: rgba(10,10,20,0.88); backdrop-filter: blur(8px);
+  border: 1px solid rgba(200,168,80,0.25); color: #c8b898;
+  width: 40px; height: 40px; border-radius: 8px; cursor: pointer;
+  font-size: 15px; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; min-width: 40px;
+}
+#controls button:hover { background: rgba(200,168,80,0.15); border-color: rgba(200,168,80,0.5); }
+#controls button.active { background: rgba(200,168,80,0.25); border-color: #c8a050; color: #e0d0b0; }
+#controls button svg { width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
+
+footer { position: fixed; bottom: 2px; left: 0; width: 100%; text-align: center; z-index: 5; pointer-events: none; }
+footer a { color: rgba(200,184,152,0.10); text-decoration: none; font-size: 8px; font-family: system-ui; pointer-events: auto; }
+footer a:hover { color: rgba(200,168,80,0.4); }
+
+@media (max-width: 768px) {
+  #preset-strip { bottom: 102px; }
+  #preset-label { bottom: 134px; }
+  #hint { bottom: 154px; font-size: 9px; }
+  #sliders-row { bottom: 62px; gap: 6px; padding: 5px 10px; }
+  #sliders-row input[type=range] { width: 40px; }
+  #sliders-row label { font-size: 7px; }
+  #controls { bottom: 12px; gap: 4px; }
+  #controls button { width: 36px; height: 36px; }
+  #controls button svg { width: 16px; height: 16px; }
+  #info-panel { top: 8px; padding: 8px 16px; }
+  #info-panel h2 { font-size: 13px; }
+}
+@media (max-width: 375px) {
+  #preset-strip { bottom: 96px; gap: 2px; }
+  #preset-strip button { padding: 4px 7px; font-size: 8px; min-height: 26px; }
+  #preset-label { bottom: 126px; font-size: 8px; }
+  #hint { bottom: 144px; font-size: 8px; }
+  #sliders-row { bottom: 58px; gap: 3px; padding: 4px 6px; }
+  #sliders-row input[type=range] { width: 30px; }
+  #sliders-row label { font-size: 6px; letter-spacing: 0.5px; }
+  #sliders-row .sep { display: none; }
+  #controls { bottom: 10px; gap: 3px; }
+  #controls button { width: 30px; height: 30px; }
+  #controls button svg { width: 14px; height: 14px; }
+  #info-panel h2 { font-size: 11px; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="ring"></div><p>Sponza Palace</p><div class="sub">Dubrovnik, Croatia</div></div>
+
+<div id="info-panel"><h2>Sponza Palace · Dubrovnik</h2><span>Renaissance Atrium &middot; 16th Century</span></div>
+
+<div id="hint">Drag orbit · Scroll zoom · Right-drag pan · W/A/S/D walk</div>
+<div id="preset-label">DAWN</div>
+
+<div id="preset-strip">
+  <button class="active" data-idx="0">Dawn</button>
+  <button data-idx="1">Morning</button>
+  <button data-idx="2">Noon</button>
+  <button data-idx="3">Golden</button>
+  <button data-idx="4">Sunset</button>
+  <button data-idx="5">Twilight</button>
+  <button data-idx="6">Night</button>
+  <button data-idx="7">Moonlit</button>
+  <button data-idx="8">Overcast</button>
+  <button data-idx="9">Dramatic</button>
+  <button data-idx="10">Warm Int</button>
+  <button data-idx="11">Cool Int</button>
+</div>
+
+<div id="sliders-row">
+  <label>Exp</label><input type="range" id="exposure" min="20" max="250" value="100"><span class="val" id="exp-val">1.0</span>
+  <div class="sep"></div>
+  <label>Amb</label><input type="range" id="ambient-level" min="10" max="200" value="100"><span class="val" id="amb-val">1.0</span>
+  <div class="sep"></div>
+  <label>Dir</label><input type="range" id="direct-level" min="10" max="250" value="100"><span class="val" id="dir-val">1.0</span>
+  <div class="sep"></div>
+  <label class="toggle-label"><input type="checkbox" id="shadows" checked>Shadow</label>
+</div>
+
+<div id="controls">
+  <button id="btn-rotate" class="active" title="Auto Rotate"><svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg></button>
+  <button id="btn-wireframe" title="Wireframe"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h4v4H7zm6 0h4v4h-4zm-6 6h4v4H7zm6 0h4v4h-4z"/></svg></button>
+  <button id="btn-reset" title="Reset"><svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
+  <button id="btn-fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+  <button id="btn-walk" title="Walk Mode"><svg viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg></button>
+  <button id="btn-top" title="Top View"><svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm-7 7H3v4c0 1.1.9 2 2 2h4v-2H5v-4zM5 5h4V3H5c-1.1 0-2 .9-2 2v4h2V5zm14-2h-4v2h4v4h2V5c0-1.1-.9-2-2-2zm0 16h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4z"/></svg></button>
+</div>
+
+<footer><a href="https://nebulacloud.studio">Built with NebulaCloud Studio</a></footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+const loading = document.getElementById('loading');
+const hint = document.getElementById('hint');
+const presetLabel = document.getElementById('preset-label');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a14);
+scene.fog = new THREE.Fog(0x0a0a14, 30, 80);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 200);
+camera.position.set(8, 5, 8);
+camera.lookAt(0, 3, 0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 1;
+controls.maxDistance = 25;
+controls.maxPolarAngle = Math.PI * 0.78;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+controls.update();
+
+const ambientLight = new THREE.AmbientLight(0x3a2a30, 0.55);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xff9060, 2.2);
+sunLight.position.set(12, 8, 3);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 60;
+sunLight.shadow.camera.left = -15;
+sunLight.shadow.camera.right = 15;
+sunLight.shadow.camera.top = 15;
+sunLight.shadow.camera.bottom = -15;
+sunLight.shadow.bias = -0.0002;
+scene.add(sunLight);
+
+const fillLight = new THREE.DirectionalLight(0x4a3040, 0.5);
+fillLight.position.set(-5, 5, -5);
+scene.add(fillLight);
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/');
+const loader = new GLTFLoader();
+loader.setDRACOLoader(dracoLoader);
+
+let modelGroup;
+let exposureMul = 1.0, ambientMul = 1.0, directMul = 1.0;
+
+loader.load('Sponza.gltf',
+  (gltf) => {
+    modelGroup = gltf.scene;
+    modelGroup.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.material.depthWrite = true;
+      }
+    });
+    scene.add(modelGroup);
+    loading.classList.add('hidden');
+    setTimeout(() => { loading.style.display = 'none'; }, 500);
+  },
+  (p) => { if (p.total > 0) loading.querySelector('p').textContent = `Sponza... ${Math.round(p.loaded/p.total*100)}%`; },
+  () => { loading.querySelector('.ring').style.display = 'none'; loading.querySelector('p').textContent = 'Failed to load'; loading.querySelector('p').style.color = '#e07070'; }
+);
+
+const presets = [
+  { name:'Dawn',      ambient:{c:0x3a2a30,i:0.55}, sun:{c:0xff9060,i:2.2,p:[12,8,3]},   fill:{c:0x4a3040,i:0.5}, fog:{c:0x1a1520,d:50} },
+  { name:'Morning',   ambient:{c:0x404060,i:0.6},  sun:{c:0xfff0d0,i:3.0,p:[10,15,5]},   fill:{c:0x8899cc,i:0.8}, fog:{c:0x0a0a14,d:70} },
+  { name:'Noon',      ambient:{c:0x505060,i:0.8},  sun:{c:0xfff8f0,i:4.5,p:[5,20,0]},    fill:{c:0xaabbdd,i:1.2}, fog:{c:0x0a0a14,d:80} },
+  { name:'Golden',    ambient:{c:0x403020,i:0.5},  sun:{c:0xffbb60,i:3.5,p:[-8,10,8]},   fill:{c:0x665540,i:0.7}, fog:{c:0x151210,d:55} },
+  { name:'Sunset',    ambient:{c:0x302020,i:0.45}, sun:{c:0xff7740,i:2.8,p:[-12,6,6]},   fill:{c:0x443322,i:0.6}, fog:{c:0x181210,d:45} },
+  { name:'Twilight',  ambient:{c:0x182030,i:0.35}, sun:{c:0x665588,i:1.5,p:[10,5,-5]},   fill:{c:0x222244,i:0.5}, fog:{c:0x0e1020,d:40} },
+  { name:'Night',     ambient:{c:0x0a1020,i:0.25}, sun:{c:0x223355,i:0.6,p:[0,15,0]},    fill:{c:0x112233,i:0.3}, fog:{c:0x080810,d:35} },
+  { name:'Moonlit',   ambient:{c:0x0a1028,i:0.3},  sun:{c:0x334488,i:1.2,p:[-5,12,8]},   fill:{c:0x1a2244,i:0.4}, fog:{c:0x080818,d:38} },
+  { name:'Overcast',  ambient:{c:0x404048,i:0.7},  sun:{c:0xdddde0,i:1.8,p:[0,18,2]},    fill:{c:0x889999,i:1.0}, fog:{c:0x222230,d:55} },
+  { name:'Dramatic',  ambient:{c:0x181820,i:0.35}, sun:{c:0xffdddd,i:4.0,p:[8,6,-8]},    fill:{c:0x332244,i:0.8}, fog:{c:0x0a0a18,d:42} },
+  { name:'Warm Int',  ambient:{c:0x443020,i:0.7},  sun:{c:0xffd8a0,i:2.0,p:[3,8,2]},     fill:{c:0x665544,i:0.9}, fog:{c:0x181410,d:65} },
+  { name:'Cool Int',  ambient:{c:0x203040,i:0.65}, sun:{c:0xccddff,i:2.2,p:[-3,8,3]},    fill:{c:0x446688,i:0.8}, fog:{c:0x101828,d:65} }
+];
+
+let currentPreset = 0;
+
+function applyPreset(idx) {
+  currentPreset = idx;
+  const p = presets[idx];
+  ambientLight.color.set(p.ambient.c);
+  ambientLight.intensity = p.ambient.i * ambientMul;
+  sunLight.color.set(p.sun.c);
+  sunLight.intensity = p.sun.i * directMul;
+  sunLight.position.set(...p.sun.p);
+  fillLight.color.set(p.fill.c);
+  fillLight.intensity = p.fill.i * directMul;
+  scene.fog.color.set(p.fog.c);
+  scene.fog.far = p.fog.d;
+  scene.background.set(p.fog.c);
+  renderer.toneMappingExposure = 1.0 * exposureMul;
+  presetLabel.textContent = p.name;
+}
+
+applyPreset(0);
+
+document.querySelectorAll('#preset-strip button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#preset-strip button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyPreset(parseInt(btn.dataset.idx));
+  });
+});
+
+// Slider event bindings
+document.getElementById('exposure').addEventListener('input', function() {
+  exposureMul = this.value / 100;
+  document.getElementById('exp-val').textContent = exposureMul.toFixed(1);
+  renderer.toneMappingExposure = exposureMul;
+});
+document.getElementById('ambient-level').addEventListener('input', function() {
+  ambientMul = this.value / 100;
+  document.getElementById('amb-val').textContent = ambientMul.toFixed(1);
+  ambientLight.intensity = presets[currentPreset].ambient.i * ambientMul;
+});
+document.getElementById('direct-level').addEventListener('input', function() {
+  directMul = this.value / 100;
+  document.getElementById('dir-val').textContent = directMul.toFixed(1);
+  sunLight.intensity = presets[currentPreset].sun.i * directMul;
+  fillLight.intensity = presets[currentPreset].fill.i * directMul;
+});
+document.getElementById('shadows').addEventListener('change', function() {
+  const on = this.checked;
+  sunLight.castShadow = on;
+  if (modelGroup) modelGroup.traverse(c => { if (c.isMesh) { c.castShadow = on; c.receiveShadow = on; }});
+});
+
+// Navigation button event bindings
+document.getElementById('btn-rotate').addEventListener('click', function() {
+  controls.autoRotate = !controls.autoRotate;
+  this.classList.toggle('active');
+});
+
+let wireframeMode = false;
+document.getElementById('btn-wireframe').addEventListener('click', function() {
+  wireframeMode = !wireframeMode;
+  this.classList.toggle('active');
+  if (modelGroup) modelGroup.traverse(c => { if (c.isMesh && c.material) c.material.wireframe = wireframeMode; });
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  controls.target.set(0, 3, 0);
+  camera.position.set(8, 5, 8);
+  controls.update();
+});
+
+document.getElementById('btn-top').addEventListener('click', () => {
+  controls.target.set(0, 3, 0);
+  camera.position.set(0, 18, 0.1);
+  controls.update();
+});
+
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+  document.fullscreenElement ? document.exitFullscreen() : document.body.requestFullscreen().catch(()=>{});
+});
+
+let walkMode = false, keys = {};
+let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+const btnWalk = document.getElementById('btn-walk');
+const PI_2 = Math.PI / 2;
+
+function onPointerLockChange() {
+  if (document.pointerLockElement === renderer.domElement) {
+    document.addEventListener('mousemove', onMouseMove);
+  } else {
+    document.removeEventListener('mousemove', onMouseMove);
+    if (walkMode) toggleWalk();
+  }
+}
+
+function onMouseMove(e) {
+  if (!walkMode) return;
+  euler.setFromQuaternion(camera.quaternion);
+  euler.y -= e.movementX * 0.002;
+  euler.x -= e.movementY * 0.002;
+  euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
+  camera.quaternion.setFromEuler(euler);
+}
+
+function enterWalk() {
+  walkMode = true;
+  euler.setFromQuaternion(camera.quaternion);
+  controls.enabled = false;
+  btnWalk.classList.add('active');
+  hint.textContent = 'W/A/S/D move · Mouse look · ESC exit';
+  renderer.domElement.requestPointerLock();
+}
+
+function exitWalk() {
+  walkMode = false;
+  controls.enabled = true;
+  controls.target.copy(camera.position).add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion));
+  controls.update();
+  btnWalk.classList.remove('active');
+  hint.textContent = 'Drag orbit · Scroll zoom · Right-drag pan · W/A/S/D walk';
+  document.exitPointerLock();
+}
+
+function toggleWalk() {
+  if (walkMode) exitWalk(); else enterWalk();
+}
+
+btnWalk.addEventListener('click', toggleWalk);
+document.addEventListener('pointerlockchange', onPointerLockChange);
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key === 'Escape' && walkMode) exitWalk(); });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+controls.addEventListener('start', () => { if(!walkMode) hint.style.opacity = '0'; });
+controls.addEventListener('end', () => { if(!walkMode) setTimeout(() => { hint.style.opacity = '1'; }, 1200); });
+
+function onResize() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+window.addEventListener('resize', onResize);
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.2);
+  if (walkMode) {
+    const spd = 5 * dt;
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    fwd.y = 0; fwd.normalize();
+    const rgt = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    rgt.y = 0; rgt.normalize();
+    if (keys['w']) camera.position.addScaledVector(fwd, spd);
+    if (keys['s']) camera.position.addScaledVector(fwd, -spd);
+    if (keys['a']) camera.position.addScaledVector(rgt, -spd);
+    if (keys['d']) camera.position.addScaledVector(rgt, spd);
+    camera.position.y = Math.max(0.5, camera.position.y);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

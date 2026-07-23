@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CFD Flow Visualization — Ferrari</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a14; font-family: system-ui, -apple-system, sans-serif; }
+  #canvas-container { width: 100%; height: 100%; position: relative; }
+  canvas { display: block; }
+
+  #loading-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: #0a0a14; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: opacity 0.6s ease-out;
+  }
+  #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .loader-ring {
+    width: 56px; height: 56px; border: 3px solid rgba(100,200,255,0.1);
+    border-top-color: #4da6ff; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-text { color: #ccd; margin-top: 18px; font-size: 14px; letter-spacing: 0.4px; }
+  #loading-bar-outer {
+    width: 200px; height: 3px; background: rgba(100,200,255,0.08); border-radius: 2px;
+    margin-top: 14px; overflow: hidden;
+  }
+  #loading-bar-inner {
+    height: 100%; width: 0%; background: linear-gradient(90deg, #4da6ff, #00e5ff);
+    border-radius: 2px; transition: width 0.3s;
+  }
+
+  #error-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(10,10,20,0.95);
+    display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff;
+  }
+  #error-overlay.visible { display: flex; }
+  #error-overlay h2 { font-size: 22px; margin-bottom: 10px; color: #e94560; }
+  #error-overlay p { font-size: 13px; color: #999; max-width: 380px; text-align: center; line-height: 1.6; }
+  #retry-btn {
+    margin-top: 20px; padding: 10px 28px; background: #e94560; color: #fff; border: none;
+    border-radius: 8px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  #retry-btn:hover { background: #c73650; }
+
+  #control-panel {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 30;
+    background: rgba(10,10,25,0.8); backdrop-filter: blur(12px);
+    border: 1px solid rgba(100,200,255,0.15); border-radius: 16px;
+    padding: 12px 20px; display: flex; gap: 20px; align-items: center;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .control-group { display: flex; align-items: center; gap: 8px; }
+  .control-group label { color: #8899bb; font-size: 11px; white-space: nowrap; letter-spacing: 0.3px; text-transform: uppercase; }
+  .control-group input[type=range] {
+    width: 80px; accent-color: #4da6ff; cursor: pointer;
+  }
+  .control-group .value { color: #4da6ff; font-size: 11px; min-width: 30px; font-variant-numeric: tabular-nums; }
+  .btn {
+    background: rgba(100,200,255,0.12); color: #88bbee; border: 1px solid rgba(100,200,255,0.2);
+    padding: 6px 14px; border-radius: 20px; font-size: 11px; cursor: pointer;
+    font-family: inherit; letter-spacing: 0.3px; transition: all 0.2s;
+  }
+  .btn:hover { background: rgba(100,200,255,0.2); border-color: rgba(100,200,255,0.4); }
+  .btn.active { background: rgba(100,200,255,0.25); color: #fff; border-color: rgba(100,200,255,0.6); }
+
+  #legend {
+    position: fixed; top: 16px; left: 16px; z-index: 30;
+    background: rgba(10,10,25,0.75); backdrop-filter: blur(8px);
+    border: 1px solid rgba(100,200,255,0.12); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  #legend .title { color: #8899bb; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  #legend-gradient {
+    width: 140px; height: 10px; border-radius: 5px;
+    background: linear-gradient(to right, #ff4444, #ff8800, #ffcc00, #44cc44, #44aaff, #4444ff);
+  }
+  #legend-labels { display: flex; justify-content: space-between; color: #667799; font-size: 10px; margin-top: 4px; }
+
+  #info-badge {
+    position: fixed; top: 16px; right: 16px; z-index: 30;
+    background: rgba(10,10,25,0.7); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,180,50,0.3); border-radius: 20px;
+    padding: 6px 14px; color: #ffb832; font-size: 11px; letter-spacing: 0.3px;
+  }
+
+  #hint {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 10;
+    color: rgba(255,255,255,0.25); font-size: 10px; pointer-events: none;
+    transition: opacity 1.2s ease;
+  }
+
+  #view-presets {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 30;
+    display: flex; gap: 8px;
+  }
+  .view-btn {
+    min-width: 44px; text-align: center;
+  }
+  .view-btn:hover { background: rgba(100,200,255,0.25); }
+
+  footer {
+    position: fixed; bottom: 2px; left: 0; right: 0; z-index: 5;
+    text-align: center; padding: 4px; opacity: 0.3;
+    font-size: 9px; font-family: system-ui; color: #668; pointer-events: none;
+  }
+  footer a { color: #4da6ff; text-decoration: none; pointer-events: auto; }
+
+  @media (max-width: 768px) {
+    #control-panel { gap: 10px; padding: 10px 14px; border-radius: 12px; }
+    .control-group input[type=range] { width: 50px; }
+    #legend { top: 8px; left: 8px; padding: 8px 10px; }
+    #legend-gradient { width: 100px; height: 8px; }
+    #info-badge { top: 8px; right: 8px; font-size: 10px; padding: 4px 10px; }
+    #view-presets { top: 8px; gap: 4px; }
+    .view-btn { min-width: 36px; padding: 5px 10px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+
+<div id="loading-overlay">
+  <div class="loader-ring"></div>
+  <div id="loading-text">Loading Ferrari & computing flow field...</div>
+  <div id="loading-bar-outer"><div id="loading-bar-inner"></div></div>
+</div>
+
+<div id="error-overlay">
+  <h2>Failed to Load</h2>
+  <p>Could not load the 3D model. Check your connection and try again.</p>
+  <button id="retry-btn" onclick="location.reload()">Retry</button>
+</div>
+
+<div id="legend">
+  <div class="title">Velocity Magnitude</div>
+  <div id="legend-gradient"></div>
+  <div id="legend-labels"><span>Slow</span><span>Fast</span></div>
+</div>
+
+<div id="info-badge">Illustrative Flow Visualization</div>
+
+<div id="control-panel">
+  <div class="control-group">
+    <label>Flow Speed</label>
+    <input type="range" id="flow-speed" min="0.2" max="3" step="0.1" value="1">
+    <span class="value" id="flow-speed-val">1.0x</span>
+  </div>
+  <div class="control-group">
+    <label>Particles</label>
+    <input type="range" id="particle-count" min="500" max="5000" step="100" value="2000">
+    <span class="value" id="particle-count-val">2000</span>
+  </div>
+  <button class="btn active" id="btn-car-visible">Car</button>
+  <button class="btn active" id="btn-wireframe">Wireframe</button>
+  <button class="btn" id="btn-trails">Trails</button>
+  <button class="btn active" id="btn-direction">Forward</button>
+  <button class="btn" id="btn-spin-360">360 Spin</button>
+  <button class="btn" id="btn-reset-view">Reset View</button>
+</div>
+
+<div id="view-presets">
+  <button class="btn view-btn" data-view="front">Front</button>
+  <button class="btn view-btn" data-view="side">Side</button>
+  <button class="btn view-btn" data-view="top">Top</button>
+  <button class="btn view-btn" data-view="back">Back</button>
+</div>
+
+<div id="hint">Drag to orbit &bull; Scroll to zoom &bull; Right-drag to pan</div>
+
+<footer><a href="https://nebulacloud.studio">Built with NebulaCloud Studio</a></footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+const container = document.getElementById('canvas-container');
+const loadingOverlay = document.getElementById('loading-overlay');
+const loadingText = document.getElementById('loading-text');
+const loadingBar = document.getElementById('loading-bar-inner');
+const errorOverlay = document.getElementById('error-overlay');
+const hint = document.getElementById('hint');
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0a0a14');
+scene.fog = new THREE.Fog('#0a0a14', 15, 50);
+
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 80);
+camera.position.set(6, 3, 7);
+camera.lookAt(0, 0.3, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.3, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 2.5;
+controls.maxDistance = 20;
+controls.maxPolarAngle = Math.PI * 0.7;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+controls.update();
+
+const ambientLight = new THREE.AmbientLight('#334466', 1.8);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight('#ffffff', 5);
+keyLight.position.set(6, 8, 4);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight('#6699cc', 1.5);
+fillLight.position.set(-3, 2, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight('#88aacc', 2);
+rimLight.position.set(0, 1, -5);
+scene.add(rimLight);
+
+const floorGeo = new THREE.PlaneGeometry(30, 30);
+const floorMat = new THREE.MeshStandardMaterial({ color: '#111122', roughness: 0.8, metalness: 0.1 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -1.4;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const grid = new THREE.PolarGridHelper(8, 40, 32, 128, '#1a1a33', '#1a1a33');
+grid.position.y = -1.39;
+scene.add(grid);
+
+let carModel = null;
+let carWireframe = null;
+let carVisible = true;
+let wireframeVisible = true;
+let trailsVisible = false;
+
+const carVertices = [];
+let boundingBox = new THREE.Box3();
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
+
+function updateLoading(progress) {
+  const pct = Math.round(progress * 100);
+  loadingBar.style.width = pct + '%';
+  loadingText.textContent = `Loading model... ${pct}%`;
+}
+
+function buildCarVertices(model) {
+  carVertices.length = 0;
+  model.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      const pos = child.geometry.getAttribute('position');
+      if (!pos) return;
+      const matrix = child.matrixWorld.clone();
+      const stride = Math.max(1, Math.floor(pos.count / 30000));
+      for (let i = 0; i < pos.count; i += stride) {
+        const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+        v.applyMatrix4(matrix);
+        carVertices.push(v.x, v.y, v.z);
+      }
+    }
+  });
+  boundingBox.setFromArray(carVertices);
+}
+
+function createWireframe(model) {
+  const wireGroup = new THREE.Group();
+  model.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      const edges = new THREE.EdgesGeometry(child.geometry, 30);
+      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
+        color: '#4488cc', transparent: true, opacity: 0.25, depthTest: true
+      }));
+      const wp = new THREE.Vector3();
+      const wq = new THREE.Quaternion();
+      const ws = new THREE.Vector3();
+      child.getWorldPosition(wp);
+      child.getWorldQuaternion(wq);
+      child.getWorldScale(ws);
+      line.position.copy(wp);
+      line.quaternion.copy(wq);
+      line.scale.copy(ws);
+      wireGroup.add(line);
+    }
+  });
+  wireGroup.position.set(0, 0, 0);
+  wireGroup.scale.set(1, 1, 1);
+  wireGroup.rotation.set(0, 0, 0);
+  return wireGroup;
+}
+
+gltfLoader.load(
+  'car_model.glb',
+  (gltf) => {
+    carModel = gltf.scene;
+
+    carModel.traverse((child) => {
+      if (child.isMesh) {
+        child.material = child.material.clone();
+        child.material.transparent = true;
+        child.material.opacity = 0.85;
+        child.material.metalness = 0.4;
+        child.material.roughness = 0.3;
+        child.material.depthWrite = true;
+      }
+    });
+
+    const box = new THREE.Box3().setFromObject(carModel);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 3.5 / maxDim;
+    carModel.scale.setScalar(scale);
+    carModel.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+    carModel.updateMatrixWorld();
+
+    scene.add(carModel);
+    buildCarVertices(carModel);
+
+    carWireframe = createWireframe(carModel);
+    scene.add(carWireframe);
+
+    controls.target.set(0, size.y * scale * 0.25, 0);
+    controls.update();
+
+    initFlowField();
+    initParticles();
+
+    loadingText.textContent = 'Computing flow field...';
+    loadingBar.style.width = '90%';
+    setTimeout(() => {
+      loadingOverlay.classList.add('hidden');
+      setTimeout(() => { hint.style.opacity = '0'; }, 8000);
+    }, 400);
+  },
+  (xhr) => {
+    if (xhr.total > 0) updateLoading(xhr.loaded / xhr.total);
+  },
+  (error) => {
+    console.error('Model load error:', error);
+    const errorMsg = error?.message || error?.target?.statusText || 'Unknown error';
+    document.querySelector('#error-overlay p').textContent =
+      'Failed: ' + errorMsg + '. Check the console for details.';
+    loadingOverlay.classList.add('hidden');
+    errorOverlay.classList.add('visible');
+  }
+);
+
+let flowField = null;
+let flowGridRes = { nx: 0, ny: 0, nz: 0 };
+let flowOrigin = new THREE.Vector3();
+let flowCellSize = new THREE.Vector3();
+
+let carOrientLength = { axis: 'x', len: 0 };
+
+function initFlowField() {
+  const bb = boundingBox;
+  const pad = 1.0;
+  const margin = 3.0;
+
+  const carCenter = new THREE.Vector3();
+  bb.getCenter(carCenter);
+  const carSize = new THREE.Vector3();
+  bb.getSize(carSize);
+
+  const sizes = [
+    { axis: 'x', len: carSize.x, ci: 0, c: carCenter.x },
+    { axis: 'z', len: carSize.z, ci: 2, c: carCenter.z },
+  ];
+  sizes.sort((a, b) => b.len - a.len);
+  const flowAxis = sizes[0];
+  const crossAxis = sizes[1];
+  carOrientLength = { axis: flowAxis.axis, len: flowAxis.len };
+
+  const rx = flowAxis.len * 0.55;
+  const ry = carSize.y * 0.6;
+  const rz = crossAxis.len * 0.5;
+  const cy = carCenter.y;
+
+  const fMin = flowAxis.c - flowAxis.len * 0.55 - margin;
+  const fMax = flowAxis.c + flowAxis.len * 0.55 + margin * 2;
+  const cMin = crossAxis.c - crossAxis.len * 0.55 - pad;
+  const cMax = crossAxis.c + crossAxis.len * 0.55 + pad;
+  const yMin = bb.min.y - pad;
+  const yMax = bb.max.y + pad * 2;
+
+  const isFlowX = flowAxis.axis === 'x';
+  const nx = isFlowX ? 100 : 40, ny = 40, nz = isFlowX ? 40 : 100;
+  const minX = isFlowX ? fMin : cMin;
+  const maxX = isFlowX ? fMax : cMax;
+  const minZ = isFlowX ? cMin : fMin;
+  const maxZ = isFlowX ? cMax : fMax;
+
+  flowGridRes = { nx, ny, nz };
+  flowOrigin.set(minX, yMin, minZ);
+  flowCellSize.set((maxX - minX) / (nx - 1), (yMax - yMin) / (ny - 1), (maxZ - minZ) / (nz - 1));
+
+  const total = nx * ny * nz;
+  flowField = new Float32Array(total * 3);
+
+  for (let ix = 0; ix < nx; ix++) {
+    for (let iy = 0; iy < ny; iy++) {
+      for (let iz = 0; iz < nz; iz++) {
+        const idx = (ix * ny * nz + iy * nz + iz) * 3;
+        const gx = minX + ix * flowCellSize.x;
+        const gy = yMin + iy * flowCellSize.y;
+        const gz = minZ + iz * flowCellSize.z;
+
+        let df, dc;
+        if (isFlowX) {
+          df = (gx - carCenter.x) / rx;
+          dc = (gz - carCenter.z) / rz;
+        } else {
+          df = (gz - carCenter.z) / rx;
+          dc = (gx - carCenter.x) / rz;
+        }
+        const dy = (gy - cy) / ry;
+        const dist = Math.sqrt(df * df + dy * dy + dc * dc);
+
+        const u0 = 1.0;
+
+        let uFlow, uVert, uCross;
+
+        if (dist < 0.85) {
+          const factor = 0.02;
+          uFlow = u0 * factor;
+          uVert = -dy * 0.05;
+          uCross = -dc * 0.05;
+        } else if (dist < 1.6) {
+          const t = (dist - 0.85) / 0.75;
+          const blend = t * t * (3 - 2 * t);
+          const snFlow = df / dist;
+          const snVert = dy / dist;
+          const snCross = dc / dist;
+
+          const tanFlow = 1.0 - snFlow * snFlow;
+          const tanVert = -snFlow * snVert;
+          const tanCross = -snFlow * snCross;
+          const tmag = Math.sqrt(tanFlow * tanFlow + tanVert * tanVert + tanCross * tanCross) || 1;
+
+          const wakeCoord = isFlowX ? gx : gz;
+          const wakeThreshold = isFlowX ? carCenter.x : carCenter.z;
+          const wakeFactor = wakeCoord > wakeThreshold ? 0.35 : 1.0;
+
+          uFlow = (u0 * blend + u0 * 0.02 * (1 - blend)) * wakeFactor;
+          uVert = (tanVert / tmag) * u0 * 0.2 * (1 - blend) * wakeFactor;
+          uCross = (tanCross / tmag) * u0 * 0.2 * (1 - blend) * wakeFactor;
+        } else {
+          uFlow = u0;
+          uVert = -dy * 0.02 / (dist * dist);
+          uCross = -dc * 0.02 / (dist * dist);
+        }
+
+        const mag = Math.sqrt(uFlow * uFlow + uVert * uVert + uCross * uCross) || 1;
+        const nmag = Math.min(mag, 2.5);
+
+        let ux, uy, uz;
+        if (isFlowX) {
+          ux = (uFlow / mag) * nmag;
+          uy = (uVert / mag) * nmag;
+          uz = (uCross / mag) * nmag;
+        } else {
+          ux = (uCross / mag) * nmag;
+          uy = (uVert / mag) * nmag;
+          uz = (uFlow / mag) * nmag;
+        }
+        flowField[idx] = ux;
+        flowField[idx + 1] = uy;
+        flowField[idx + 2] = uz;
+      }
+    }
+  }
+}
+
+function sampleFlowField(x, y, z) {
+  const { nx, ny, nz } = flowGridRes;
+  const ix = (x - flowOrigin.x) / flowCellSize.x;
+  const iy = (y - flowOrigin.y) / flowCellSize.y;
+  const iz = (z - flowOrigin.z) / flowCellSize.z;
+
+  const i0 = Math.max(0, Math.min(nx - 2, Math.floor(ix)));
+  const j0 = Math.max(0, Math.min(ny - 2, Math.floor(iy)));
+  const k0 = Math.max(0, Math.min(nz - 2, Math.floor(iz)));
+  const i1 = i0 + 1;
+  const j1 = j0 + 1;
+  const k1 = k0 + 1;
+
+  const fx = ix - i0;
+  const fy = iy - j0;
+  const fz = iz - k0;
+
+  const g = (i, j, k) => {
+    const idx = (i * ny * nz + j * nz + k) * 3;
+    return [flowField[idx], flowField[idx + 1], flowField[idx + 2]];
+  };
+
+  const c000 = g(i0, j0, k0), c100 = g(i1, j0, k0);
+  const c010 = g(i0, j1, k0), c110 = g(i1, j1, k0);
+  const c001 = g(i0, j0, k1), c101 = g(i1, j0, k1);
+  const c011 = g(i0, j1, k1), c111 = g(i1, j1, k1);
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  const vx = lerp(lerp(lerp(c000[0], c100[0], fx), lerp(c010[0], c110[0], fx), fy),
+                  lerp(lerp(c001[0], c101[0], fx), lerp(c011[0], c111[0], fx), fy), fz);
+  const vy = lerp(lerp(lerp(c000[1], c100[1], fx), lerp(c010[1], c110[1], fx), fy),
+                  lerp(lerp(c001[1], c101[1], fx), lerp(c011[1], c111[1], fy), fy), fz);
+  const vz = lerp(lerp(lerp(c000[2], c100[2], fx), lerp(c010[2], c110[2], fx), fy),
+                  lerp(lerp(c001[2], c101[2], fx), lerp(c011[2], c111[2], fy), fy), fz);
+
+  return new THREE.Vector3(vx, vy, vz);
+}
+
+let particles = null;
+let particleVelocities = null;
+let particleAges = null;
+let particleSystem = null;
+let particleCount = 2000;
+let flowSpeed = 1.0;
+let flowDirection = 1;
+let flowDomain = { min: new THREE.Vector3(), max: new THREE.Vector3() };
+
+function velocityColor(mag) {
+  const t = Math.min(Math.max(mag / 1.5, 0), 1);
+  const r = t < 0.5 ? t * 2 : 2 - t * 2;
+  const g = t < 0.5 ? 1 - t * 2 : (t - 0.5) * 2;
+  const b = 1 - t;
+  return new THREE.Color(r, g, b);
+}
+
+function initParticles() {
+  const bb = boundingBox;
+  const isFlowX = carOrientLength.axis === 'x';
+
+  const fMin = isFlowX ? bb.min.x - 3.0 : bb.min.z - 3.0;
+  const fMax = isFlowX ? bb.max.x + 5.0 : bb.max.z + 5.0;
+  const cMin = isFlowX ? bb.min.z - 1.5 : bb.min.x - 1.5;
+  const cMax = isFlowX ? bb.max.z + 1.5 : bb.max.x + 1.5;
+
+  flowDomain.min.set(
+    isFlowX ? fMin : cMin,
+    bb.min.y - 0.5,
+    isFlowX ? cMin : fMin
+  );
+  flowDomain.max.set(
+    isFlowX ? fMax : cMax,
+    bb.max.y + 1.5,
+    isFlowX ? cMax : fMax
+  );
+
+  if (particleSystem) {
+    scene.remove(particleSystem);
+    if (particleSystem.geometry) particleSystem.geometry.dispose();
+    if (particleSystem.material) particleSystem.material.dispose();
+  }
+
+  const maxParticles = 5000;
+  const positions = new Float32Array(maxParticles * 3);
+  const colors = new Float32Array(maxParticles * 3);
+  particleVelocities = new Float32Array(maxParticles * 3);
+  particleAges = new Float32Array(maxParticles);
+
+  for (let i = 0; i < maxParticles; i++) {
+    resetParticle(i, positions, true);
+    const idx3 = i * 3;
+    colors[idx3] = 0.2;
+    colors[idx3 + 1] = 0.6;
+    colors[idx3 + 2] = 1.0;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 0.06,
+    vertexColors: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    transparent: true,
+    opacity: 0.85,
+  });
+
+  particleSystem = new THREE.Points(geometry, material);
+  scene.add(particleSystem);
+}
+
+function resetParticle(i, positions, randomAge) {
+  const bb = boundingBox;
+  const idx3 = i * 3;
+  const isFlowX = carOrientLength.axis === 'x';
+
+  const spawnX = flowDirection === 1 ? flowDomain.min.x + Math.random() * 0.3 : flowDomain.max.x - Math.random() * 0.3;
+  const spawnZ = flowDirection === 1 ? flowDomain.min.z + Math.random() * 0.3 : flowDomain.max.z - Math.random() * 0.3;
+
+  if (isFlowX) {
+    positions[idx3] = spawnX;
+    positions[idx3 + 2] = bb.min.z - 1.0 + Math.random() * (bb.max.z - bb.min.z + 2.0);
+  } else {
+    positions[idx3] = bb.min.x - 1.0 + Math.random() * (bb.max.x - bb.min.x + 2.0);
+    positions[idx3 + 2] = spawnZ;
+  }
+  positions[idx3 + 1] = bb.min.y - 0.3 + Math.random() * (bb.max.y - bb.min.y + 1.0);
+
+  const vel = sampleFlowField(positions[idx3], positions[idx3 + 1], positions[idx3 + 2]);
+  particleVelocities[idx3] = vel.x;
+  particleVelocities[idx3 + 1] = vel.y;
+  particleVelocities[idx3 + 2] = vel.z;
+  particleAges[i] = randomAge ? Math.random() * 5 : 0;
+}
+
+function updateParticles(dt) {
+  if (!particleSystem || !flowField) return;
+
+  const positions = particleSystem.geometry.attributes.position.array;
+  const colors = particleSystem.geometry.attributes.color.array;
+  const speed = flowSpeed;
+
+  for (let i = 0; i < particleCount; i++) {
+    const idx3 = i * 3;
+    let px = positions[idx3];
+    let py = positions[idx3 + 1];
+    let pz = positions[idx3 + 2];
+
+    const vel = sampleFlowField(px, py, pz);
+
+    const vx = vel.x * speed * flowDirection;
+    const vy = vel.y * speed * flowDirection + (Math.sin(particleAges[i] * 3 + i * 0.1) * 0.03);
+    const vz = vel.z * speed * flowDirection + (Math.cos(particleAges[i] * 2.5 + i * 0.13) * 0.03);
+
+    particleVelocities[idx3] = vx;
+    particleVelocities[idx3 + 1] = vy;
+    particleVelocities[idx3 + 2] = vz;
+
+    px += vx * dt;
+    py += vy * dt;
+    pz += vz * dt;
+
+    positions[idx3] = px;
+    positions[idx3 + 1] = py;
+    positions[idx3 + 2] = pz;
+
+    particleAges[i] += dt;
+
+    const mag = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    const col = velocityColor(mag);
+    colors[idx3] = col.r;
+    colors[idx3 + 1] = col.g;
+    colors[idx3 + 2] = col.b;
+
+    if (px > flowDomain.max.x || px < flowDomain.min.x ||
+        py > flowDomain.max.y || py < flowDomain.min.y ||
+        pz > flowDomain.max.z || pz < flowDomain.min.z) {
+      resetParticle(i, positions, true);
+    }
+  }
+
+  particleSystem.geometry.attributes.position.needsUpdate = true;
+  particleSystem.geometry.attributes.color.needsUpdate = true;
+}
+
+function rebuildParticles() {
+  initParticles();
+}
+
+let clock = new THREE.Clock();
+let trailLines = [];
+let trailGroup = new THREE.Group();
+scene.add(trailGroup);
+
+function updateTrails() {
+  if (!trailsVisible) return;
+  trailLines.forEach(l => {
+    l.geometry?.dispose();
+    l.material?.dispose();
+  });
+  trailLines = [];
+  trailGroup.clear();
+
+  const numTrails = 40;
+  const positions = particleSystem?.geometry?.attributes?.position?.array;
+  if (!positions) return;
+  const isFlowX = carOrientLength.axis === 'x';
+
+  for (let t = 0; t < numTrails; t++) {
+    const i = Math.floor(Math.random() * particleCount);
+    const idx3 = i * 3;
+    const pts = [];
+    let x = positions[idx3], y = positions[idx3 + 1], z = positions[idx3 + 2];
+    const steps = 40;
+    const dt = 0.04;
+    for (let s = 0; s < steps; s++) {
+      pts.push(new THREE.Vector3(x, y, z));
+      const vel = sampleFlowField(x, y, z);
+      x -= vel.x * dt;
+      y -= vel.y * dt;
+      z -= vel.z * dt;
+      const outOfBounds = isFlowX
+        ? (x < flowDomain.min.x || x > flowDomain.max.x)
+        : (z < flowDomain.min.z || z > flowDomain.max.z);
+      if (outOfBounds) break;
+    }
+
+    if (pts.length > 1) {
+      const curve = new THREE.CatmullRomCurve3(pts.reverse());
+      const curvePts = curve.getPoints(pts.length * 4);
+      const geo = new THREE.BufferGeometry().setFromPoints(curvePts);
+      const mat = new THREE.LineBasicMaterial({
+        color: new THREE.Color().setHSL(0.55 + Math.random() * 0.15, 0.8, 0.5 + Math.random() * 0.3),
+        transparent: true,
+        opacity: 0.4,
+        depthTest: true,
+      });
+      const line = new THREE.Line(geo, mat);
+      trailGroup.add(line);
+      trailLines.push(line);
+    }
+  }
+}
+
+let trailTimer = 0;
+let spin360Active = false;
+let spin360Angle = 0;
+let spin360Speed = 0.6;
+let spin360Distance = 6;
+let spin360Height = 3;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.1);
+
+  if (spin360Active) {
+    spin360Angle += spin360Speed * dt;
+    const cx = Math.cos(spin360Angle) * spin360Distance;
+    const cz = Math.sin(spin360Angle) * spin360Distance;
+    camera.position.set(cx, spin360Height, cz);
+    camera.lookAt(0, 0.3, 0);
+    controls.target.set(0, 0.3, 0);
+  } else {
+    controls.update();
+  }
+
+  updateParticles(dt);
+
+  if (trailsVisible) {
+    trailTimer += dt;
+    if (trailTimer > 0.5) {
+      trailTimer = 0;
+      updateTrails();
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+const flowSpeedInput = document.getElementById('flow-speed');
+const flowSpeedVal = document.getElementById('flow-speed-val');
+const particleCountInput = document.getElementById('particle-count');
+const particleCountVal = document.getElementById('particle-count-val');
+const btnCarVisible = document.getElementById('btn-car-visible');
+const btnWireframe = document.getElementById('btn-wireframe');
+const btnTrails = document.getElementById('btn-trails');
+const btnDirection = document.getElementById('btn-direction');
+const btnSpin360 = document.getElementById('btn-spin-360');
+const btnResetView = document.getElementById('btn-reset-view');
+const viewPresetBtns = document.querySelectorAll('.view-btn');
+
+flowSpeedInput.addEventListener('input', () => {
+  flowSpeed = parseFloat(flowSpeedInput.value);
+  flowSpeedVal.textContent = flowSpeed.toFixed(1) + 'x';
+});
+
+particleCountInput.addEventListener('input', () => {
+  particleCount = parseInt(particleCountInput.value);
+  particleCountVal.textContent = particleCount;
+  rebuildParticles();
+});
+
+btnCarVisible.addEventListener('click', () => {
+  carVisible = !carVisible;
+  btnCarVisible.classList.toggle('active', carVisible);
+  if (carModel) carModel.visible = carVisible;
+});
+
+btnWireframe.addEventListener('click', () => {
+  wireframeVisible = !wireframeVisible;
+  btnWireframe.classList.toggle('active', wireframeVisible);
+  if (carWireframe) carWireframe.visible = wireframeVisible;
+});
+
+btnTrails.addEventListener('click', () => {
+  trailsVisible = !trailsVisible;
+  btnTrails.classList.toggle('active', trailsVisible);
+  if (!trailsVisible) {
+    trailLines.forEach(l => { l.geometry?.dispose(); l.material?.dispose(); });
+    trailLines = [];
+    trailGroup.clear();
+  } else {
+    updateTrails();
+  }
+});
+
+btnDirection.addEventListener('click', () => {
+  flowDirection = -flowDirection;
+  btnDirection.textContent = flowDirection === 1 ? 'Forward' : 'Reverse';
+  btnDirection.classList.toggle('active', flowDirection === 1);
+});
+
+btnSpin360.addEventListener('click', () => {
+  spin360Active = !spin360Active;
+  btnSpin360.classList.toggle('active', spin360Active);
+  if (spin360Active) {
+    controls.autoRotate = false;
+    const pos = camera.position;
+    spin360Distance = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+    spin360Height = pos.y;
+    spin360Angle = Math.atan2(pos.z, pos.x);
+  } else {
+    controls.target.set(0, 0.3, 0);
+    controls.update();
+  }
+});
+
+viewPresetBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    spin360Active = false;
+    btnSpin360.classList.remove('active');
+    controls.autoRotate = false;
+    const view = btn.dataset.view;
+    const dist = 6;
+    switch (view) {
+      case 'front':
+        camera.position.set(0, 0.5, dist);
+        controls.target.set(0, 0.3, 0);
+        break;
+      case 'side':
+        camera.position.set(dist, 0.5, 0);
+        controls.target.set(0, 0.3, 0);
+        break;
+      case 'top':
+        camera.position.set(0, dist, 0.1);
+        controls.target.set(0, 0.3, 0);
+        break;
+      case 'back':
+        camera.position.set(0, 0.5, -dist);
+        controls.target.set(0, 0.3, 0);
+        break;
+    }
+    controls.update();
+  });
+});
+
+btnResetView.addEventListener('click', () => {
+  spin360Active = false;
+  btnSpin360.classList.remove('active');
+  camera.position.set(6, 3, 7);
+  controls.target.set(0, 0.3, 0);
+  controls.update();
+  flowSpeed = 1.0;
+  flowSpeedInput.value = 1.0;
+  flowSpeedVal.textContent = '1.0x';
+  flowDirection = 1;
+  btnDirection.textContent = 'Forward';
+  btnDirection.classList.add('active');
+  rebuildParticles();
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+animate();
+</script>
+</body>
+</html>

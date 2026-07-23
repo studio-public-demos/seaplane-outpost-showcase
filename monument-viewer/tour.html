@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual Tour - Sponza Palace</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --panel-bg: rgba(10, 10, 30, 0.94);
+    --accent: #4a9eff;
+    --accent2: #ff6b9d;
+    --gold: #f0c060;
+    --text: #e0e0e0;
+    --radius: 14px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: system-ui, -apple-system, sans-serif; }
+  #canvas-container { width: 100%; height: 100%; position: fixed; top: 0; left: 0; }
+  canvas { display: block; }
+
+  /* ─── Annotation Labels (CSS overlay) ─── */
+  .anno-label {
+    position: fixed; pointer-events: none; z-index: 60;
+    transform: translate(-50%, -50%); opacity: 0;
+    transition: opacity 0.35s ease;
+    white-space: nowrap;
+  }
+  .anno-label.visible { opacity: 1; }
+  .anno-label .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--gold); margin: 0 auto 4px;
+    box-shadow: 0 0 12px var(--gold), 0 0 28px rgba(240,192,96,0.5);
+    animation: pulse-dot 2s ease-in-out infinite;
+    position: relative; z-index: 1;
+  }
+  .anno-label .tag-box {
+    background: var(--panel-bg); border: 1px solid rgba(240,192,96,0.3);
+    border-radius: 18px; padding: 5px 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .anno-label .tag-text {
+    font-size: 11px; font-weight: 600; color: var(--gold);
+    letter-spacing: 0.3px;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(2.2); opacity: 0.5; }
+  }
+
+  /* ─── Hotspot markers in 3D (CSS line connectors) ─── */
+  .hotspot-line {
+    position: fixed; pointer-events: none; z-index: 55;
+    transform-origin: top left; opacity: 0;
+    transition: opacity 0.35s ease;
+    height: 1px; background: linear-gradient(90deg, rgba(240,192,96,0.8), rgba(240,192,96,0));
+  }
+  .hotspot-line.visible { opacity: 1; }
+
+  /* ─── Loading ─── */
+  #loading {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 200; transition: opacity 0.6s;
+  }
+  #loading.hidden { opacity: 0; pointer-events: none; }
+  .loader-spinner {
+    width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.12);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading .text { color: #aaa; margin-top: 18px; font-size: 15px; }
+  #loading .progress-bar {
+    width: 280px; height: 4px; background: rgba(255,255,255,0.08);
+    border-radius: 2px; margin-top: 14px; overflow: hidden;
+  }
+  #loading .progress-fill {
+    height: 100%; background: var(--accent); border-radius: 2px;
+    width: 0%; transition: width 0.4s ease;
+  }
+
+  /* ─── Top bar ─── */
+  #top-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
+    pointer-events: none;
+  }
+  #top-bar > * { pointer-events: auto; }
+  #title-area {
+    background: var(--panel-bg); backdrop-filter: blur(16px);
+    padding: 10px 18px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #title-area h1 { font-size: 17px; font-weight: 600; color: #fff; }
+  #title-area .sub { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+  #autoplay-btn {
+    background: var(--panel-bg); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px 18px;
+    border-radius: 24px; cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: all 0.25s; display: flex; align-items: center; gap: 7px;
+  }
+  #autoplay-btn:hover { background: rgba(255,255,255,0.12); }
+  #autoplay-btn.playing { background: var(--accent2); border-color: var(--accent2); }
+
+  /* ─── Tour panel ─── */
+  #tour-panel {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 100; display: flex; gap: 8px; align-items: center;
+    background: var(--panel-bg); backdrop-filter: blur(16px);
+    padding: 6px; border-radius: 28px; border: 1px solid rgba(255,255,255,0.08);
+    max-width: 95vw; overflow-x: auto; scrollbar-width: none;
+  }
+  #tour-panel::-webkit-scrollbar { display: none; }
+  .nav-btn {
+    min-width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    color: #fff; cursor: pointer; font-size: 16px; display: flex;
+    align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.14); }
+  .nav-btn:active { transform: scale(0.93); }
+  .stop-dot {
+    min-width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15);
+    cursor: pointer; transition: all 0.3s; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4);
+  }
+  .stop-dot:hover { border-color: var(--accent); color: #fff; transform: scale(1.12); }
+  .stop-dot.active { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.15); box-shadow: 0 0 20px rgba(74,158,255,0.4); }
+  .stop-dot.visited { border-color: rgba(74,158,255,0.5); color: var(--accent); }
+
+  /* ─── Info card ─── */
+  #info-card {
+    position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
+    z-index: 100; max-width: 320px; width: 90%;
+    background: var(--panel-bg); backdrop-filter: blur(16px);
+    border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.08);
+    padding: 22px; transition: all 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    opacity: 0; transform: translateY(-50%) translateX(20px); pointer-events: none;
+  }
+  #info-card.visible { opacity: 1; transform: translateY(-50%) translateX(0); pointer-events: auto; }
+  #info-card .stop-number { font-size: 48px; font-weight: 800; color: var(--accent); line-height: 1; margin-bottom: 4px; opacity: 0.25; }
+  #info-card h3 { font-size: 20px; color: #fff; margin-bottom: 8px; font-weight: 600; }
+  #info-card p { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.6; }
+  #info-card .tags { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  #info-card .tag { background: rgba(74,158,255,0.12); color: var(--accent); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+  #info-card .annotations-list { margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; }
+  #info-card .anno-item { font-size: 10px; color: var(--gold); padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+  #info-card .anno-item::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; animation: pulse-dot 2s ease-in-out infinite; }
+
+  /* ─── Progress ─── */
+  #progress-bar {
+    position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+    z-index: 100; width: 200px; height: 2px; background: rgba(255,255,255,0.08);
+    border-radius: 1px; overflow: hidden;
+  }
+  #progress-fill-bar {
+    height: 100%; background: var(--accent); border-radius: 1px;
+    transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* ─── Flashing label for current stop title ─── */
+  #stop-flash {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 90; pointer-events: none; font-size: 28px; font-weight: 700;
+    color: #fff; text-shadow: 0 0 30px rgba(0,0,0,0.8); opacity: 0;
+    transition: opacity 0.5s; letter-spacing: -0.5px; text-align: center;
+  }
+
+  /* ─── Mobile ─── */
+  @media (max-width: 768px) {
+    #title-area { padding: 8px 14px; }
+    #title-area h1 { font-size: 14px; }
+    #title-area .sub { font-size: 10px; }
+    #autoplay-btn { padding: 8px 14px; font-size: 12px; }
+    #info-card { right: 8px; max-width: 240px; padding: 14px; }
+    #info-card .stop-number { font-size: 32px; }
+    #info-card h3 { font-size: 15px; }
+    #info-card p { font-size: 11px; }
+    #tour-panel { bottom: 10px; padding: 4px; gap: 4px; }
+    .stop-dot { min-width: 28px; height: 28px; font-size: 10px; }
+    .nav-btn { min-width: 32px; height: 32px; font-size: 13px; }
+    #progress-bar { bottom: 72px; width: 130px; }
+    .anno-label .tag-text { font-size: 9px; }
+    .anno-label .dot { width: 7px; height: 7px; }
+    #stop-flash { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<!-- Annotations container (CSS labels projected from 3D) -->
+<div id="annotations-layer" style="position:fixed;inset:0;pointer-events:none;z-index:55;"></div>
+
+<div id="loading">
+  <div class="loader-spinner"></div>
+  <div class="text">Loading Sponza Palace...</div>
+  <div class="progress-bar"><div class="progress-fill" id="loading-progress-fill"></div></div>
+</div>
+
+<div id="top-bar">
+  <div id="title-area">
+    <h1>Sponza Palace</h1>
+    <div class="sub">Dubrovnik, Croatia &bull; Virtual Tour</div>
+  </div>
+  <button id="autoplay-btn" onclick="window.toggleAutoplay()" title="Auto-play tour (Space)">
+    <span id="autoplay-icon">&#9654;</span> <span id="autoplay-label">Auto Tour</span>
+  </button>
+</div>
+
+<div id="info-card">
+  <div class="stop-number" id="stop-number"></div>
+  <h3 id="stop-title"></h3>
+  <p id="stop-desc"></p>
+  <div class="tags" id="stop-tags"></div>
+  <div class="annotations-list" id="stop-annotations"></div>
+</div>
+
+<div id="stop-flash"></div>
+
+<div id="progress-bar"><div id="progress-fill-bar" style="width:0%"></div></div>
+
+<div id="tour-panel">
+  <button class="nav-btn" onclick="window.prevStop()" title="Previous (Left Arrow)">&#9664;</button>
+  <div id="stop-dots"></div>
+  <button class="nav-btn" onclick="window.nextStop()" title="Next (Right Arrow)">&#9654;</button>
+</div>
+
+<footer style="text-align:center;padding:6px;position:fixed;bottom:0;left:0;right:0;z-index:99;opacity:0.3;font-size:9px;font-family:system-ui;color:#888;pointer-events:none;">
+  <a href="https://nebulacloud.studio" style="color:#4a9eff;text-decoration:none;">Built with NebulaCloud Studio</a>
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ─── DOM refs ───
+const container = document.getElementById('canvas-container');
+const loadingEl = document.getElementById('loading');
+const loadingProgressFill = document.getElementById('loading-progress-fill');
+const infoCard = document.getElementById('info-card');
+const stopDotsContainer = document.getElementById('stop-dots');
+const progressBarFill = document.getElementById('progress-fill-bar');
+const annotationsLayer = document.getElementById('annotations-layer');
+const autoplayBtn = document.getElementById('autoplay-btn');
+const autoplayIcon = document.getElementById('autoplay-icon');
+const autoplayLabel = document.getElementById('autoplay-label');
+const stopNumberEl = document.getElementById('stop-number');
+const stopTitleEl = document.getElementById('stop-title');
+const stopDescEl = document.getElementById('stop-desc');
+const stopTagsEl = document.getElementById('stop-tags');
+const stopAnnotationsEl = document.getElementById('stop-annotations');
+const stopFlash = document.getElementById('stop-flash');
+
+// ─── Three.js setup ───
+let renderer, scene, camera, controls, model;
+let animationId;
+
+function initScene() {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  container.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87CEEB);
+  scene.fog = new THREE.FogExp2(0x87CEEB, 0.0008);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 200);
+  
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 1.5;
+  controls.maxDistance = 40;
+  controls.maxPolarAngle = Math.PI * 0.78;
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0x8899bb, 0.5));
+  scene.add(new THREE.HemisphereLight(0xffffdd, 0x445566, 0.7));
+  const sun = new THREE.DirectionalLight(0xfff5e8, 3.5);
+  sun.position.set(20, 30, 15);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 120;
+  sun.shadow.camera.left = -25;
+  sun.shadow.camera.right = 25;
+  sun.shadow.camera.top = 25;
+  sun.shadow.camera.bottom = -25;
+  sun.shadow.bias = -0.0001;
+  scene.add(sun);
+
+  const groundGeo = new THREE.PlaneGeometry(80, 80);
+  const groundMat = new THREE.ShadowMaterial({ opacity: 0.3 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Annotation marker group
+  markerGroup = new THREE.Group();
+  scene.add(markerGroup);
+}
+
+// ─── Tour Stops ───
+const tourStops = [
+  {
+    id: 1,
+    title: 'Welcome to Sponza Palace',
+    desc: 'Built in the early 16th century, the Sponza Palace is one of Dubrovnik\'s finest examples of Gothic-Renaissance architecture. It served as the customs house, mint, and state treasury.',
+    tags: ['Overview', 'History'],
+    position: [-4, 20, 22],
+    target: [-0.5, 5.2, -0.3],
+    duration: 6,
+    annotations: ['main-entrance', 'south-facade'],
+  },
+  {
+    id: 2,
+    title: 'The Grand Courtyard',
+    desc: 'The central atrium is a masterpiece of Renaissance harmony. Notice the elegant arcades on both levels and the open sky above.',
+    tags: ['Courtyard', 'Architecture'],
+    position: [2, 3.5, 5],
+    target: [-2, 5, -3],
+    duration: 6,
+    annotations: ['courtyard-floor', 'north-arcade', 'east-columns', 'west-columns'],
+  },
+  {
+    id: 3,
+    title: 'The Entrance Portal',
+    desc: 'The main entrance features a Gothic archway with intricate stone carvings. Merchants and dignitaries passed through here for centuries.',
+    tags: ['Entrance', 'Gothic'],
+    position: [0, 2.5, 11],
+    target: [-0.5, 3, 5],
+    duration: 5,
+    annotations: ['main-entrance', 'inscription-stone', 'south-facade'],
+  },
+  {
+    id: 4,
+    title: 'Upper Gallery - East Wing',
+    desc: 'From the upper gallery, admire the ornate column capitals and the rhythm of the arches. This level housed administrative offices.',
+    tags: ['Gallery', 'Upper Level'],
+    position: [10, 7.5, 2],
+    target: [0, 6, -2],
+    duration: 5,
+    annotations: ['east-gallery-railing', 'east-columns', 'capital-detail-east'],
+  },
+  {
+    id: 5,
+    title: 'Upper Gallery - West Wing',
+    desc: 'The west gallery mirrors the east in perfect symmetry. The stone balustrade features geometric patterns typical of Dubrovnik craftsmanship.',
+    tags: ['Gallery', 'Symmetry'],
+    position: [-11, 7.5, -1],
+    target: [0, 6, -0.3],
+    duration: 5,
+    annotations: ['west-gallery-railing', 'west-columns', 'capital-detail-west'],
+  },
+  {
+    id: 6,
+    title: 'The North Arcade',
+    desc: 'The north side has the deepest arcades, providing shade during the Mediterranean summers. The thick stone walls keep the interior cool.',
+    tags: ['Arcade', 'Design'],
+    position: [1, 2.5, -10],
+    target: [-0.5, 4, 0],
+    duration: 5,
+    annotations: ['north-arcade', 'north-vault'],
+  },
+  {
+    id: 7,
+    title: 'Architectural Details',
+    desc: 'Each column capital is uniquely carved with floral motifs, geometric designs, and heraldic symbols of the Republic of Ragusa.',
+    tags: ['Details', 'Craftsmanship'],
+    position: [7, 3, 8],
+    target: [5, 4.5, 5],
+    duration: 5,
+    annotations: ['capital-detail-east', 'floral-carving', 'east-columns'],
+  },
+  {
+    id: 8,
+    title: 'Looking Up - The Open Sky',
+    desc: 'The rectangular opening to the sky floods the atrium with light. It symbolizes the connection between earthly commerce and the divine.',
+    tags: ['Atrium', 'Light'],
+    position: [-0.5, 1.2, 1],
+    target: [-0.5, 14, -0.3],
+    duration: 6,
+    annotations: ['courtyard-floor', 'roof-opening'],
+  },
+];
+
+// ─── 3D Annotations (world positions & labels) ───
+// These are placed at key architectural features in the Sponza model
+const annotations3D = [
+  { id: 'main-entrance',      pos: [-0.5, 3.0, 8.8],   label: 'Main Entrance (Gothic Arch)',        icon: '🏛️' },
+  { id: 'south-facade',       pos: [-0.5, 8.5, 8.5],   label: 'South Facade',                        icon: '🏰' },
+  { id: 'courtyard-floor',    pos: [-0.5, -0.2, -0.3],  label: 'Courtyard Floor',                     icon: '⏺️' },
+  { id: 'north-arcade',       pos: [-0.5, 4.5, -9.2],   label: 'North Arcade',                        icon: '🏛️' },
+  { id: 'north-vault',        pos: [-0.5, 9.5, -8.5],   label: 'North Vaulted Ceiling',               icon: '🔶' },
+  { id: 'east-columns',       pos: [14.2, 3.5, -0.3],   label: 'East Colonnade',                      icon: '🏛️' },
+  { id: 'west-columns',       pos: [-16.0, 3.5, -0.3],  label: 'West Colonnade',                      icon: '🏛️' },
+  { id: 'east-gallery-railing', pos: [12.5, 7.0, -0.3], label: 'East Gallery Balustrade',             icon: '🔷' },
+  { id: 'west-gallery-railing', pos: [-13.5, 7.0, -0.3],label: 'West Gallery Balustrade',             icon: '🔷' },
+  { id: 'capital-detail-east',  pos: [14.0, 5.0, 3.0],  label: 'Column Capital (Floral Motif)',       icon: '🌿' },
+  { id: 'capital-detail-west',  pos: [-15.5, 5.0, -4.0],label: 'Column Capital (Geometric Pattern)',  icon: '🔶' },
+  { id: 'floral-carving',     pos: [10.0, 2.5, 7.5],    label: 'Stone Carving Detail',                icon: '🌿' },
+  { id: 'inscription-stone',  pos: [-0.5, 5.5, 8.0],    label: 'Commemorative Inscription',           icon: '📜' },
+  { id: 'roof-opening',       pos: [-0.5, 12.0, -0.3],  label: 'Open Atrium Roof',                    icon: '☀️' },
+];
+
+// Create annotation map for quick lookup
+const annoMap = {};
+annotations3D.forEach(a => { annoMap[a.id] = a; });
+
+// ─── Create 3D sprite markers ───
+const spriteMarkers = [];
+let markerGroup;
+
+function createSpriteMarker(position3D, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  
+  // Outer glow
+  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(0.25, color);
+  gradient.addColorStop(1, 'transparent');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 64, 64);
+  
+  // Inner dot
+  ctx.beginPath();
+  ctx.arc(32, 32, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.copy(position3D);
+  sprite.scale.set(1.2, 1.2, 1);
+  sprite.userData = { baseScale: 1.2 };
+  return sprite;
+}
+
+function buildAnnotationMarkers() {
+  annotations3D.forEach(anno => {
+    const pos = new THREE.Vector3(...anno.pos);
+    const sprite = createSpriteMarker(pos, '#f0c060');
+    sprite.userData.annoId = anno.id;
+    markerGroup.add(sprite);
+    spriteMarkers.push(sprite);
+  });
+}
+
+// ─── CSS Label elements (projected from 3D) ───
+const labelElements = [];
+
+function createLabelElement(anno) {
+  const el = document.createElement('div');
+  el.className = 'anno-label';
+  el.innerHTML = `
+    <div class="dot"></div>
+    <div class="tag-box"><span class="tag-text">${anno.label}</span></div>
+  `;
+  el.dataset.annoId = anno.id;
+  annotationsLayer.appendChild(el);
+  return el;
+}
+
+function buildLabelElements() {
+  annotations3D.forEach(anno => {
+    const el = createLabelElement(anno);
+    labelElements.push({ el, annoId: anno.id, pos3D: new THREE.Vector3(...anno.pos) });
+  });
+}
+
+// ─── Project 3D position to screen ───
+function toScreenPosition(worldPos) {
+  const vector = worldPos.clone().project(camera);
+  return {
+    x: (vector.x * 0.5 + 0.5) * window.innerWidth,
+    y: (-vector.y * 0.5 + 0.5) * window.innerHeight,
+    visible: vector.z < 1,
+  };
+}
+
+function updateLabels() {
+  const activeAnnos = new Set(tourStops[currentStop]?.annotations || []);
+  
+  labelElements.forEach(({ el, annoId, pos3D }) => {
+    const screen = toScreenPosition(pos3D);
+    const isActive = activeAnnos.has(annoId);
+    
+    if (screen.visible && isActive) {
+      el.style.left = screen.x + 'px';
+      el.style.top = screen.y + 'px';
+      el.classList.add('visible');
+    } else {
+      el.classList.remove('visible');
+    }
+  });
+}
+
+// ─── Sprite animation ───
+function updateSprites(time) {
+  const activeAnnos = new Set(tourStops[currentStop]?.annotations || []);
+  
+  spriteMarkers.forEach(sprite => {
+    const annoId = sprite.userData.annoId;
+    const isActive = activeAnnos.has(annoId);
+    const targetOpacity = isActive ? 1.0 : 0.15;
+    
+    sprite.material.opacity += (targetOpacity - sprite.material.opacity) * 0.1;
+    
+    // Pulse animation for active markers
+    if (isActive) {
+      const pulse = 1 + Math.sin(time * 3) * 0.3;
+      const bs = sprite.userData.baseScale;
+      sprite.scale.set(bs * pulse, bs * pulse, 1);
+    } else {
+      const bs = sprite.userData.baseScale;
+      sprite.scale.set(bs * 0.5, bs * 0.5, 1);
+    }
+  });
+}
+
+// ─── Tour State ───
+let currentStop = 0;
+let isTransitioning = false;
+let autoplayActive = false;
+let autoplayTimer = null;
+let visitedStops = new Set([0]);
+let transitionProgress = 0;
+const transitionDuration = 1.8;
+
+// ─── Camera Animation ───
+let animStartPos = new THREE.Vector3();
+let animStartTarget = new THREE.Vector3();
+let animEndPos = new THREE.Vector3();
+let animEndTarget = new THREE.Vector3();
+let animStartTime = 0;
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function startTransition(stopIndex) {
+  if (isTransitioning || stopIndex === currentStop) return;
+  if (stopIndex < 0 || stopIndex >= tourStops.length) return;
+
+  isTransitioning = true;
+  const stop = tourStops[stopIndex];
+  
+  animStartPos.copy(camera.position);
+  animStartTarget.copy(controls.target);
+  animEndPos.set(...stop.position);
+  animEndTarget.set(...stop.target);
+  animStartTime = performance.now() / 1000;
+  transitionProgress = 0;
+  controls.enableDamping = false;
+
+  currentStop = stopIndex;
+  visitedStops.add(stopIndex);
+  updateUI();
+  flashStopTitle(stop.title);
+}
+
+function updateTransition(now) {
+  if (!isTransitioning) return;
+  
+  const elapsed = now - animStartTime;
+  transitionProgress = Math.min(elapsed / transitionDuration, 1.0);
+  const t = easeInOutCubic(transitionProgress);
+  
+  camera.position.lerpVectors(animStartPos, animEndPos, t);
+  controls.target.lerpVectors(animStartTarget, animEndTarget, t);
+  
+  if (transitionProgress >= 1.0) {
+    isTransitioning = false;
+    camera.position.copy(animEndPos);
+    controls.target.copy(animEndTarget);
+    controls.enableDamping = true;
+  }
+}
+
+// ─── Flash title ───
+function flashStopTitle(title) {
+  stopFlash.textContent = title;
+  stopFlash.style.opacity = '1';
+  stopFlash.style.transform = 'translate(-50%, -50%) scale(1)';
+  setTimeout(() => {
+    stopFlash.style.opacity = '0';
+    stopFlash.style.transform = 'translate(-50%, -50%) scale(1.15)';
+  }, 1800);
+  stopFlash.style.transition = 'opacity 0.5s, transform 1.8s';
+}
+
+// ─── UI ───
+function updateUI() {
+  const stop = tourStops[currentStop];
+  
+  stopNumberEl.textContent = String(stop.id).padStart(2, '0');
+  stopTitleEl.textContent = stop.title;
+  stopDescEl.textContent = stop.desc;
+  stopTagsEl.innerHTML = stop.tags.map(t => `<span class="tag">${t}</span>`).join('');
+  
+  // Show related annotations in info card
+  if (stop.annotations && stop.annotations.length > 0) {
+    const items = stop.annotations.map(id => {
+      const a = annoMap[id];
+      return a ? `<div class="anno-item">${a.icon} ${a.label}</div>` : '';
+    }).join('');
+    stopAnnotationsEl.innerHTML = items;
+  } else {
+    stopAnnotationsEl.innerHTML = '';
+  }
+  
+  infoCard.classList.add('visible');
+  
+  const pct = (currentStop / (tourStops.length - 1)) * 100;
+  progressBarFill.style.width = pct + '%';
+  
+  document.querySelectorAll('.stop-dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === currentStop);
+    dot.classList.toggle('visited', visitedStops.has(i));
+  });
+}
+
+function buildStopDots() {
+  stopDotsContainer.innerHTML = '';
+  tourStops.forEach((stop, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'stop-dot' + (i === 0 ? ' active visited' : '');
+    dot.textContent = stop.id;
+    dot.title = stop.title;
+    dot.addEventListener('click', () => window.goToStop(i));
+    stopDotsContainer.appendChild(dot);
+  });
+}
+
+// ─── Navigation ───
+window.goToStop = function(index) {
+  if (isTransitioning || autoplayActive) return;
+  startTransition(index);
+};
+
+window.nextStop = function() {
+  if (isTransitioning || autoplayActive) return;
+  startTransition((currentStop + 1) % tourStops.length);
+};
+
+window.prevStop = function() {
+  if (isTransitioning || autoplayActive) return;
+  startTransition((currentStop - 1 + tourStops.length) % tourStops.length);
+};
+
+window.toggleAutoplay = function() {
+  autoplayActive = !autoplayActive;
+  
+  if (autoplayActive) {
+    autoplayIcon.innerHTML = '&#9646;&#9646;';
+    autoplayLabel.textContent = 'Pause';
+    autoplayBtn.classList.add('playing');
+    scheduleNextAutoplay();
+  } else {
+    autoplayIcon.innerHTML = '&#9654;';
+    autoplayLabel.textContent = 'Auto Tour';
+    autoplayBtn.classList.remove('playing');
+    clearTimeout(autoplayTimer);
+    controls.enableDamping = true;
+  }
+};
+
+function scheduleNextAutoplay() {
+  if (!autoplayActive) return;
+  const duration = tourStops[currentStop].duration * 1000;
+  autoplayTimer = setTimeout(() => {
+    const next = (currentStop + 1) % tourStops.length;
+    startTransition(next);
+    setTimeout(scheduleNextAutoplay, transitionDuration * 1000 + 400);
+  }, duration);
+}
+
+// ─── Keyboard ───
+window.addEventListener('keydown', (e) => {
+  if (autoplayActive && e.key === 'Escape') { toggleAutoplay(); return; }
+  if (autoplayActive) return;
+  
+  switch (e.key) {
+    case 'ArrowRight': case 'ArrowDown': window.nextStop(); break;
+    case 'ArrowLeft': case 'ArrowUp': window.prevStop(); break;
+    case 'Home': window.goToStop(0); break;
+    case 'End': window.goToStop(tourStops.length - 1); break;
+    case ' ':
+      e.preventDefault();
+      window.toggleAutoplay();
+      break;
+    case 'f': case 'F':
+      if (!isTransitioning) {
+        controls.target.set(...tourStops[currentStop].target);
+        controls.update();
+      }
+      break;
+    default:
+      if (e.key >= '1' && e.key <= String(tourStops.length)) {
+        window.goToStop(parseInt(e.key) - 1);
+      }
+  }
+});
+
+// Touch swipe
+let touchStartX = 0, touchStartY = 0;
+window.addEventListener('touchstart', (e) => {
+  if (e.target.closest('#tour-panel') || e.target.closest('#info-card') || e.target.closest('#autoplay-btn')) return;
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+});
+window.addEventListener('touchend', (e) => {
+  if (autoplayActive || isTransitioning) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
+    dx > 0 ? prevStop() : nextStop();
+  }
+});
+
+// ─── Load Model ───
+function loadModel() {
+  const loader = new GLTFLoader();
+  loader.load(
+    'Sponza.gltf',
+    (gltf) => {
+      model = gltf.scene;
+      model.traverse((node) => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      scene.add(model);
+      
+      // Set initial camera
+      camera.position.set(...tourStops[0].position);
+      controls.target.set(...tourStops[0].target);
+      controls.update();
+      
+      loadingEl.classList.add('hidden');
+      setTimeout(() => loadingEl.style.display = 'none', 500);
+      
+      buildStopDots();
+      buildAnnotationMarkers();
+      buildLabelElements();
+      updateUI();
+      
+      console.log('Sponza Palace loaded - Virtual tour ready with annotations');
+      console.log('Controls: Arrow keys / 1-8 / Space for autoplay / Swipe on mobile');
+    },
+    (progress) => {
+      if (progress.total > 0) {
+        loadingProgressFill.style.width = Math.round((progress.loaded / progress.total) * 100) + '%';
+      }
+    },
+    (error) => {
+      console.error('Load error:', error);
+      loadingEl.innerHTML = '<div style="color:#ff6b6b;font-size:16px;text-align:center">Failed to load model.<br>Ensure all model files are present.</div>';
+    }
+  );
+}
+
+// ─── Render Loop ───
+function animate(time) {
+  animationId = requestAnimationFrame(animate);
+  
+  const now = time / 1000;
+  
+  if (isTransitioning) {
+    updateTransition(now);
+    controls.update();
+  } else {
+    controls.update();
+  }
+  
+  updateLabels();
+  updateSprites(now);
+  
+  renderer.render(scene, camera);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+window.addEventListener('resize', onResize);
+
+// ─── Start ───
+initScene();
+loadModel();
+animate(performance.now());
+</script>
+</body>
+</html>

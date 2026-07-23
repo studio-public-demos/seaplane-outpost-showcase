@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhoneVault — Immersive Phone Store</title>
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #14141f; --card: #1a1a2e;
+    --text: #e8e8f0; --text2: #9898b0; --accent: #6c5ce7;
+    --accent2: #a29bfe; --gold: #f9ca24; --radius: 14px; --radius-sm: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif;
+    overflow-x: hidden; min-height: 100vh;
+  }
+  button { cursor: pointer; font-family: inherit; border: none; }
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10,10,15,0.85); backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px; height: 56px;
+  }
+  .nav-logo {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .nav-actions { display: flex; gap: 16px; align-items: center; }
+  .nav-btn {
+    background: none; color: var(--text2); font-size: 14px;
+    padding: 6px 12px; border-radius: var(--radius-sm); transition: all 0.2s;
+  }
+  .nav-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .cart-btn { position: relative; font-size: 18px; }
+  .cart-badge {
+    position: absolute; top: -4px; right: -6px; background: var(--accent);
+    color: #fff; font-size: 10px; width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+    display: none;
+  }
+  .cart-badge.show { display: flex; }
+  #hero {
+    min-height: 100vh; display: flex; align-items: center; position: relative;
+    padding: 80px 24px 60px; overflow: hidden;
+  }
+  #hero-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+  .hero-content { position: relative; z-index: 2; max-width: 500px; }
+  .hero-badge {
+    display: inline-block; padding: 6px 14px; border-radius: 20px;
+    background: rgba(108,92,231,0.15); color: var(--accent2); font-size: 13px;
+    font-weight: 600; margin-bottom: 16px;
+  }
+  .hero-content h1 {
+    font-size: clamp(32px, 6vw, 56px); font-weight: 800; line-height: 1.1;
+    margin-bottom: 16px; letter-spacing: -1px;
+  }
+  .hero-content h1 span { color: var(--accent2); }
+  .hero-content p { color: var(--text2); font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
+  .hero-content button {
+    padding: 14px 32px; border-radius: var(--radius); font-size: 15px; font-weight: 600;
+    background: var(--accent); color: #fff; transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(108,92,231,0.4);
+  }
+  .hero-content button:hover { transform: translateY(-2px); box-shadow: 0 6px 30px rgba(108,92,231,0.5); }
+  #products { padding: 60px 24px; max-width: 1200px; margin: 0 auto; }
+  .section-header { text-align: center; margin-bottom: 48px; }
+  .section-header h2 { font-size: clamp(24px, 4vw, 36px); font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .section-header p { color: var(--text2); font-size: 15px; }
+  .section-header .status { font-size: 12px; color: var(--accent2); margin-top: 6px; }
+  .product-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 24px;
+  }
+  .product-card {
+    background: var(--card); border-radius: var(--radius); overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.05); transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+  }
+  .product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(108,92,231,0.2);
+  }
+  .card-3d {
+    height: 220px; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .card-3d canvas { width: 100%; height: 100%; display: block; }
+  .card-3d .placeholder {
+    width: 100%; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 48px; color: rgba(255,255,255,0.2);
+  }
+  .card-badge-new {
+    position: absolute; top: 12px; left: 12px; background: var(--accent);
+    color: #fff; font-size: 10px; font-weight: 700; padding: 4px 10px;
+    border-radius: 12px; text-transform: uppercase; z-index: 5;
+  }
+  .card-info { padding: 16px; }
+  .card-info h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .card-info .brand { color: var(--text2); font-size: 12px; margin-bottom: 8px; }
+  .card-info .price { font-size: 20px; font-weight: 700; }
+  .card-info .price .old { color: var(--text2); font-size: 14px; text-decoration: line-through; margin-left: 8px; font-weight: 400; }
+  .card-rating { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+  .card-rating .stars { color: var(--gold); }
+  .card-rating small { color: var(--text2); font-size: 12px; }
+
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-content {
+    background: var(--surface); border-radius: var(--radius); width: 90vw; max-width: 1000px;
+    max-height: 90vh; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr;
+    border: 1px solid rgba(255,255,255,0.08); position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 16px; right: 16px; z-index: 10;
+    background: rgba(255,255,255,0.1); color: #fff; width: 36px; height: 36px;
+    border-radius: 50%; font-size: 18px; display: flex; align-items: center; justify-content: center;
+  }
+  .modal-3d-viewer {
+    min-height: 400px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-3d-viewer canvas { width: 100%; height: 100%; display: block; }
+  .modal-details { padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+  .modal-details h2 { font-size: 24px; font-weight: 700; }
+  .modal-details .brand { color: var(--text2); font-size: 13px; }
+  .modal-details .price { font-size: 28px; font-weight: 700; margin-top: 8px; }
+  .color-options { display: flex; gap: 10px; margin-top: 8px; }
+  .color-dot {
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
+    transition: border-color 0.2s; position: relative;
+  }
+  .color-dot.active { border-color: #fff; }
+  .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .spec-item { background: rgba(255,255,255,0.03); padding: 12px; border-radius: var(--radius-sm); }
+  .spec-item .spec-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .spec-item .spec-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+  .spec-full p { margin: 4px 0; font-size: 13px; color: var(--text2); }
+  .spec-full p strong { color: var(--text); }
+  .btn-primary {
+    width: 100%; padding: 14px; background: var(--accent); color: #fff;
+    border-radius: var(--radius); font-size: 15px; font-weight: 600;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #5b4bd5; transform: translateY(-1px); }
+
+  .cart-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 150;
+    background: rgba(0,0,0,0.5); display: none;
+  }
+  .cart-overlay.active { display: block; }
+  .cart-sidebar {
+    position: fixed; top: 0; right: -420px; bottom: 0; width: 100%; max-width: 400px;
+    z-index: 151; background: var(--surface); transition: right 0.3s ease;
+    display: flex; flex-direction: column; box-shadow: -4px 0 30px rgba(0,0,0,0.5);
+    border-left: 1px solid rgba(255,255,255,0.05);
+  }
+  .cart-sidebar.active { right: 0; }
+  .cart-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .cart-header h3 { font-size: 18px; }
+  .cart-close { background: none; color: var(--text2); font-size: 20px; }
+  .cart-items { flex: 1; overflow-y: auto; padding: 16px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .cart-empty { text-align: center; padding: 60px 20px; color: var(--text2); }
+  .cart-item {
+    display: flex; gap: 12px; align-items: center; padding: 12px;
+    background: rgba(255,255,255,0.03); border-radius: var(--radius-sm);
+  }
+  .cart-item-img {
+    width: 60px; height: 60px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;
+  }
+  .cart-item-info { flex: 1; }
+  .cart-item-info h4 { font-size: 14px; font-weight: 600; }
+  .cart-item-info .item-color { font-size: 12px; color: var(--text2); }
+  .cart-item-price { font-weight: 700; font-size: 14px; }
+  .cart-qty { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .cart-qty button {
+    width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.08);
+    color: var(--text); font-size: 14px; display: flex; align-items: center; justify-content: center;
+  }
+  .cart-remove { color: #e17055; font-size: 12px; background: none; margin-top: 4px; display: block; }
+  .cart-footer { padding: 20px 24px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .cart-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  .cart-footer .btn-primary { display: block; text-align: center; text-decoration: none; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--surface); color: #fff; padding: 12px 24px; border-radius: var(--radius);
+    font-size: 14px; font-weight: 600; z-index: 300; transition: transform 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 768px) {
+    .modal-content { grid-template-columns: 1fr; max-height: 95vh; }
+    .modal-3d-viewer { min-height: 280px; }
+    .modal-details { padding: 20px; }
+    .product-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .card-3d { height: 160px; }
+    .hero-content { max-width: 100%; text-align: center; }
+    nav { padding: 10px 16px; }
+  }
+  @media (max-width: 375px) {
+    .product-grid { grid-template-columns: 1fr; }
+    .spec-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">PhoneVault</div>
+  <div class="nav-actions">
+    <button class="nav-btn" onclick="scrollToProducts()">Shop</button>
+    <button class="nav-btn cart-btn" onclick="toggleCart()">&#128722;<span class="cart-badge" id="cart-count">0</span></button>
+  </div>
+</nav>
+
+<section id="hero">
+  <div id="hero-canvas"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--text2);"><div class="spinner"></div>Loading 3D...</div></div>
+  <div class="hero-content">
+    <div class="hero-badge">New Collection 2026</div>
+    <h1>Your Next Phone, <span>in 3D</span></h1>
+    <p>Explore the latest smartphones in stunning 3D. Rotate, zoom, and discover every detail before you buy.</p>
+    <button onclick="scrollToProducts()">Explore Phones</button>
+  </div>
+</section>
+
+<section id="products">
+  <div class="section-header">
+    <h2>Featured Phones</h2>
+    <p>Click any phone to explore it in 3D</p>
+    <p class="status" id="status-msg">Loading catalog...</p>
+  </div>
+  <div class="product-grid" id="product-grid"></div>
+</section>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    <div class="modal-3d-viewer" id="modal-viewer"><div style="text-align:center;color:var(--text2);padding:40px;"><div class="spinner"></div>Loading 3D...</div></div>
+    <div class="modal-details" id="modal-details"></div>
+  </div>
+</div>
+
+<div class="cart-overlay" id="cart-overlay" onclick="toggleCart()"></div>
+<div class="cart-sidebar" id="cart-sidebar">
+  <div class="cart-header">
+    <h3>Your Cart</h3>
+    <button class="cart-close" onclick="toggleCart()">&#10005;</button>
+  </div>
+  <div class="cart-items" id="cart-items"></div>
+  <div class="cart-footer" id="cart-footer"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Product data - always available regardless of Three.js
+var products = [
+  { id: 'p1', name: 'PhoneOne 15 Pro', brand: 'PhoneOne', price: 999, oldPrice: 1099, rating: 4.8, reviews: 2340, isNew: true,
+    colors: [{ name: 'Natural Titanium', hex: '#d4c5a9' }, { name: 'Blue Titanium', hex: '#334466' }, { name: 'Black Titanium', hex: '#1a1a1a' }, { name: 'White Titanium', hex: '#e8e8e0' }],
+    storage: ['128GB', '256GB', '512GB', '1TB'],
+    specs: { display: '6.7" OLED 120Hz', camera: '48MP Triple', processor: 'A18 Pro', battery: '4,500mAh' },
+    desc: 'The most powerful phone. Titanium design, pro camera system, and all-day battery.', gradient: 'linear-gradient(135deg, #1a1a3e, #2a2a5e)'
+  },
+  { id: 'p2', name: 'Galaxy S25 Ultra', brand: 'Samsung', price: 1199, oldPrice: 1299, rating: 4.7, reviews: 1890, isNew: true,
+    colors: [{ name: 'Titanium Gray', hex: '#888888' }, { name: 'Titanium Black', hex: '#1c1c1c' }, { name: 'Titanium Violet', hex: '#553388' }],
+    storage: ['256GB', '512GB', '1TB'],
+    specs: { display: '6.8" AMOLED 144Hz', camera: '200MP Quad', processor: 'Snapdragon 8 Gen 4', battery: '5,000mAh' },
+    desc: 'Ultimate Galaxy experience. Built-in S Pen, AI-powered camera, and stunning display.', gradient: 'linear-gradient(135deg, #1a1a2e, #3a1a4e)'
+  },
+  { id: 'p3', name: 'Pixel 10 Pro', brand: 'Google', price: 899, oldPrice: null, rating: 4.6, reviews: 1560, isNew: false,
+    colors: [{ name: 'Porcelain', hex: '#f5f0e8' }, { name: 'Obsidian', hex: '#1a1a1a' }, { name: 'Bay Blue', hex: '#3366aa' }, { name: 'Coral', hex: '#ee7755' }],
+    storage: ['128GB', '256GB', '512GB'],
+    specs: { display: '6.7" LTPO OLED', camera: '50MP Triple', processor: 'Tensor G5', battery: '4,800mAh' },
+    desc: 'Pure Google experience. Best-in-class AI features, computational photography, 7 years of updates.', gradient: 'linear-gradient(135deg, #1a2e1a, #2e3a2e)'
+  },
+  { id: 'p4', name: 'OnePlus 13', brand: 'OnePlus', price: 699, oldPrice: 799, rating: 4.5, reviews: 980, isNew: false,
+    colors: [{ name: 'Emerald Green', hex: '#115544' }, { name: 'Sandstone', hex: '#888070' }, { name: 'Midnight Black', hex: '#111111' }],
+    storage: ['128GB', '256GB'],
+    specs: { display: '6.6" AMOLED 120Hz', camera: '50MP Triple', processor: 'Snapdragon 8 Gen 4', battery: '5,500mAh' },
+    desc: 'Speed champion. Super-fast charging, fluid display, and flagship performance at a great price.', gradient: 'linear-gradient(135deg, #0a2a1a, #1a3a2a)'
+  },
+  { id: 'p5', name: 'Nothing Phone 3', brand: 'Nothing', price: 599, oldPrice: null, rating: 4.4, reviews: 720, isNew: false,
+    colors: [{ name: 'White', hex: '#f0f0f0' }, { name: 'Black', hex: '#1a1a1a' }],
+    storage: ['128GB', '256GB'],
+    specs: { display: '6.55" OLED 120Hz', camera: '50MP Dual', processor: 'Dimensity 9300', battery: '4,700mAh' },
+    desc: 'Iconic design. Unique Glyph Interface, clean Android, and a design that stands out.', gradient: 'linear-gradient(135deg, #1a1a1a, #2a2a2a)'
+  }
+];
+
+var cart = [];
+var THREE_READY = false;
+
+// Render product cards immediately
+function renderProductCards() {
+  var grid = document.getElementById('product-grid');
+  var html = '';
+  for (var i = 0; i < products.length; i++) {
+    var p = products[i];
+    var stars = '';
+    for (var s = 0; s < Math.floor(p.rating); s++) stars += '\u2605';
+    if (p.rating % 1 >= 0.5) stars += '\u2606';
+    var oldPriceHtml = p.oldPrice ? '<span class="old">$' + p.oldPrice + '</span>' : '';
+    var newBadge = p.isNew ? '<div class="card-badge-new">New</div>' : '';
+    html += '<div class="product-card" onclick="openProduct(\'' + p.id + '\')">' +
+      '<div class="card-3d" id="card-3d-' + i + '" style="background:' + p.colors[0].hex + '22;' + p.gradient + '">' +
+        newBadge +
+        '<div class="placeholder" id="card-placeholder-' + i + '">&#128241;<div style="font-size:13px;margin-top:8px;">' + (p.colors.map(function(c){return '<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+c.hex+';margin:2px;border:1px solid rgba(255,255,255,0.2);"></span>';}).join('')) + '</div></div>' +
+      '</div>' +
+      '<div class="card-info">' +
+        '<h3>' + p.name + '</h3>' +
+        '<div class="brand">' + p.brand + '</div>' +
+        '<div class="price">$' + p.price + ' ' + oldPriceHtml + '</div>' +
+        '<div class="card-rating"><span class="stars">' + stars + '</span> <span>' + p.rating + '</span> <small>(' + p.reviews + ')</small></div>' +
+      '</div>' +
+    '</div>';
+  }
+  grid.innerHTML = html;
+  document.getElementById('status-msg').textContent = THREE_READY ? 'Interactive 3D ready!' : '3D engine loading...';
+}
+renderProductCards();
+
+function scrollToProducts() {
+  document.getElementById('products').scrollIntoView({behavior:'smooth'});
+}
+
+function openProduct(id) {
+  var p = products.find(function(x) { return x.id === id; });
+  if (!p) return;
+  document.getElementById('modal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+  renderModalUI(p);
+  if (typeof window._startModal3D === 'function') {
+    window._startModal3D(p);
+  }
+}
+
+function renderModalUI(p) {
+  var stars = '';
+  for (var s = 0; s < Math.floor(p.rating); s++) stars += '\u2605';
+  if (p.rating % 1 >= 0.5) stars += '\u2606';
+  var oldHtml = p.oldPrice ? '<span class="old" style="text-decoration:line-through;color:var(--text2);font-size:18px;font-weight:400;margin-left:8px;">$' + p.oldPrice + '</span>' : '';
+
+  var html = '<div><div class="brand">' + p.brand + '</div><h2>' + p.name + '</h2>';
+  html += '<div class="card-rating"><span class="stars">' + stars + '</span> <span>' + p.rating + '</span> <small>(' + p.reviews + ' reviews)</small></div>';
+  html += '<div class="price">$' + p.price + ' ' + oldHtml + '</div></div>';
+  html += '<div><p style="font-size:13px;color:var(--text2);">' + p.desc + '</p></div>';
+  html += '<div><strong style="font-size:13px;">Color: <span id="color-label">' + p.colors[0].name + '</span></strong>';
+  html += '<div class="color-options">';
+  for (var c = 0; c < p.colors.length; c++) {
+    html += '<span class="color-dot' + (c === 0 ? ' active' : '') + '" style="background:' + p.colors[c].hex + '" data-color="' + p.colors[c].hex + '" data-name="' + p.colors[c].name + '" onclick="event.stopPropagation();selectColor(this)"></span>';
+  }
+  html += '</div></div>';
+  html += '<div class="spec-grid">';
+  var keys = Object.keys(p.specs);
+  for (var k = 0; k < keys.length; k++) {
+    html += '<div class="spec-item"><div class="spec-label">' + keys[k] + '</div><div class="spec-value">' + p.specs[keys[k]] + '</div></div>';
+  }
+  html += '</div>';
+  html += '<div class="spec-full"><p><strong>Storage:</strong> ' + p.storage.join(' / ') + '</p></div>';
+  html += '<button class="btn-primary" onclick="addToCartFromModal()">Add to Cart \u2014 $' + p.price + '</button>';
+  document.getElementById('modal-details').innerHTML = html;
+}
+
+function selectColor(el) {
+  var dots = document.querySelectorAll('#modal-details .color-dot');
+  for (var i = 0; i < dots.length; i++) dots[i].classList.remove('active');
+  el.classList.add('active');
+  document.getElementById('color-label').textContent = el.dataset.name;
+  if (typeof window._updateModalColor === 'function') {
+    window._updateModalColor(el.dataset.color);
+  }
+}
+
+function addToCartFromModal() {
+  var pId = getActiveProductId();
+  var p = products.find(function(x) { return x.id === pId; });
+  if (!p) return;
+  var active = document.querySelector('#modal-details .color-dot.active');
+  var name = active ? active.dataset.name : p.colors[0].name;
+  var hex = active ? active.dataset.color : p.colors[0].hex;
+  addToCart(p, name, hex);
+}
+
+function getActiveProductId() {
+  for (var i = 0; i < products.length; i++) {
+    var el = document.getElementById('card-placeholder-' + i);
+    if (el) return products[i].id;
+  }
+  return null;
+}
+
+function addToCart(product, colorName, colorHex) {
+  var existing = null;
+  for (var i = 0; i < cart.length; i++) {
+    if (cart[i].product.id === product.id && cart[i].color === colorName) { existing = cart[i]; break; }
+  }
+  if (existing) { existing.qty++; } else { cart.push({ product: product, color: colorName, colorHex: colorHex, qty: 1 }); }
+  updateCartUI();
+  showToast(product.name + ' added to cart!');
+}
+
+function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
+function updateQty(index, delta) { cart[index].qty += delta; if (cart[index].qty <= 0) cart.splice(index, 1); updateCartUI(); }
+
+function updateCartUI() {
+  var count = 0;
+  for (var i = 0; i < cart.length; i++) count += cart[i].qty;
+  var badge = document.getElementById('cart-count');
+  badge.textContent = count;
+  if (count > 0) badge.classList.add('show'); else badge.classList.remove('show');
+
+  var itemsEl = document.getElementById('cart-items');
+  var footerEl = document.getElementById('cart-footer');
+  if (cart.length === 0) {
+    itemsEl.innerHTML = '<div class="cart-empty"><p style="font-size:40px;margin-bottom:12px;">&#128722;</p><p>Your cart is empty</p><p style="font-size:12px;color:var(--text2);margin-top:4px;">Add some awesome phones!</p></div>';
+    footerEl.innerHTML = '';
+  } else {
+    var itemsHtml = '';
+    for (var i = 0; i < cart.length; i++) {
+      var item = cart[i];
+      itemsHtml += '<div class="cart-item">' +
+        '<div class="cart-item-img" style="background:' + item.colorHex + '22;">&#128241;</div>' +
+        '<div class="cart-item-info"><h4>' + item.product.name + '</h4>' +
+        '<div class="item-color">' + item.color + '</div>' +
+        '<div class="cart-qty"><button onclick="updateQty(' + i + ',-1)">-</button><span>' + item.qty + '</span><button onclick="updateQty(' + i + ',1)">+</button></div>' +
+        '<button class="cart-remove" onclick="removeFromCart(' + i + ')">Remove</button></div>' +
+        '<div class="cart-item-price">$' + (item.product.price * item.qty) + '</div></div>';
+    }
+    itemsEl.innerHTML = itemsHtml;
+    var total = 0;
+    for (var j = 0; j < cart.length; j++) total += cart[j].product.price * cart[j].qty;
+    footerEl.innerHTML = '<div class="cart-total"><span>Total</span><span>$' + total.toLocaleString() + '</span></div>' +
+      '<a class="btn-primary" style="display:block;text-align:center;" href="#" onclick="event.preventDefault();showToast(\'Checkout coming soon!\')">Checkout</a>';
+  }
+}
+
+function toggleCart() {
+  document.getElementById('cart-sidebar').classList.toggle('active');
+  document.getElementById('cart-overlay').classList.toggle('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  document.body.style.overflow = '';
+  if (typeof window._stopModal3D === 'function') window._stopModal3D();
+}
+
+function showToast(msg) {
+  var toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(function() { toast.classList.remove('show'); }, 2000);
+}
+
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Track which product is in the modal
+var _currentModalProduct = null;
+window._getModalProduct = function() { return _currentModalProduct; };
+window._setModalProduct = function(p) { _currentModalProduct = p; };
+
+updateCartUI();
+</script>
+
+<script type="module">
+// Dynamic import of Three.js with fallback
+let THREE;
+let OrbitControls;
+
+async function loadThreeJS() {
+  try {
+    const mod = await import('https://unpkg.com/three@0.160.0/build/three.module.js');
+    const addon = await import('https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js');
+    THREE = mod;
+    OrbitControls = addon.OrbitControls;
+    window.THREE_READY = true;
+    return true;
+  } catch(e) {
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+      const addon = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js');
+      THREE = mod;
+      OrbitControls = addon.OrbitControls;
+      window.THREE_READY = true;
+      return true;
+    } catch(e2) {
+      console.warn('Three.js could not be loaded. Using static placeholders.', e2.message);
+      window.THREE_READY = false;
+      document.getElementById('status-msg').textContent = '3D engine unavailable — showing previews';
+      return false;
+    }
+  }
+}
+
+function createPhoneModel(color = '#334466') {
+  const group = new THREE.Group();
+  const bodyW = 1.4, bodyH = 2.9, bodyD = 0.14, r = 0.15;
+  const bw2 = bodyW / 2, bh2 = bodyH / 2;
+
+  const bodyShape = new THREE.Shape();
+  bodyShape.moveTo(-bw2 + r, -bh2);
+  bodyShape.lineTo(bw2 - r, -bh2);
+  bodyShape.quadraticCurveTo(bw2, -bh2, bw2, -bh2 + r);
+  bodyShape.lineTo(bw2, bh2 - r);
+  bodyShape.quadraticCurveTo(bw2, bh2, bw2 - r, bh2);
+  bodyShape.lineTo(-bw2 + r, bh2);
+  bodyShape.quadraticCurveTo(-bw2, bh2, -bw2, bh2 - r);
+  bodyShape.lineTo(-bw2, -bh2 + r);
+  bodyShape.quadraticCurveTo(-bw2, -bh2, -bw2 + r, -bh2);
+
+  const extGeo = new THREE.ExtrudeGeometry(bodyShape, { depth: bodyD, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 8 });
+  const frame = new THREE.Mesh(extGeo, new THREE.MeshStandardMaterial({ color: '#c0c0c0', roughness: 0.3, metalness: 0.9 }));
+  frame.position.z = -bodyD / 2;
+  group.add(frame);
+
+  const inset = 0.04;
+  const frontShape = new THREE.Shape();
+  frontShape.moveTo(-bw2 + r + inset, -bh2 + inset);
+  frontShape.lineTo(bw2 - r - inset, -bh2 + inset);
+  frontShape.quadraticCurveTo(bw2 - inset, -bh2 + inset, bw2 - inset, -bh2 + r + inset);
+  frontShape.lineTo(bw2 - inset, bh2 - r - inset);
+  frontShape.quadraticCurveTo(bw2 - inset, bh2 - inset, bw2 - r - inset, bh2 - inset);
+  frontShape.lineTo(-bw2 + r + inset, bh2 - inset);
+  frontShape.quadraticCurveTo(-bw2 + inset, bh2 - inset, -bw2 + inset, bh2 - r - inset);
+  frontShape.lineTo(-bw2 + inset, -bh2 + r + inset);
+  frontShape.quadraticCurveTo(-bw2 + inset, -bh2 + inset, -bw2 + r + inset, -bh2 + inset);
+
+  const screenGeo = new THREE.ShapeGeometry(frontShape);
+  const screen = new THREE.Mesh(screenGeo, new THREE.MeshStandardMaterial({ color: '#111122', roughness: 0.1, metalness: 0.1, emissive: '#001122', emissiveIntensity: 0.3 }));
+  screen.position.z = bodyD / 2 + 0.005;
+  group.add(screen);
+
+  const backColor = new THREE.Color(color);
+  backColor.multiplyScalar(0.85);
+  const backGeo = new THREE.ShapeGeometry(frontShape);
+  const back = new THREE.Mesh(backGeo, new THREE.MeshStandardMaterial({ color: backColor, roughness: 0.15, metalness: 0.05 }));
+  back.position.z = -bodyD/2 - 0.005;
+  back.rotation.y = Math.PI;
+  group.add(back);
+
+  const camBase = new THREE.BoxGeometry(0.6, 0.6, 0.03);
+  const camMesh = new THREE.Mesh(camBase, new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.2, metalness: 0.3 }));
+  camMesh.position.set(0, bodyH/2 - 0.8, -bodyD/2 - 0.025);
+  group.add(camMesh);
+
+  [[-0.15, 0.15], [0.15, 0.15], [0, -0.15]].forEach(([lx, ly]) => {
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.015, 24), new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.1 }));
+    lens.position.set(lx, ly + bodyH/2 - 0.8, -bodyD/2 - 0.045);
+    lens.rotation.x = Math.PI / 2;
+    group.add(lens);
+
+    const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.016, 24), new THREE.MeshStandardMaterial({ color: '#001122', roughness: 0.05, metalness: 0.8 }));
+    inner.position.set(lx, ly + bodyH/2 - 0.8, -bodyD/2 - 0.05);
+    inner.rotation.x = Math.PI / 2;
+    group.add(inner);
+  });
+
+  const btn1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.25, 0.02), new THREE.MeshStandardMaterial({ color: '#d0d0d0', roughness: 0.3, metalness: 0.9 }));
+  btn1.position.set(bodyW/2 + 0.01, 0.15, -0.01);
+  group.add(btn1);
+  const btn2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.45, 0.02), new THREE.MeshStandardMaterial({ color: '#d0d0d0', roughness: 0.3, metalness: 0.9 }));
+  btn2.position.set(bodyW/2 + 0.01, -0.3, -0.01);
+  group.add(btn2);
+
+  return group;
+}
+
+function makeScene(container, interactive) {
+  const w = container.clientWidth || 300;
+  const h = container.clientHeight || 300;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  container.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, w / h, 0.1, 20);
+  camera.position.set(1.8, 0.5, 4);
+  scene.add(new THREE.AmbientLight(0x8899cc, 1.0));
+
+  const key = new THREE.DirectionalLight(0xffffff, 2.5);
+  key.position.set(3, 2, 4);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0x6688cc, 1.2);
+  fill.position.set(-2, 1, -1);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 1.5);
+  rim.position.set(0, -1, 2);
+  scene.add(rim);
+
+  let controls = null;
+  if (interactive) {
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 2;
+    controls.maxDistance = 6;
+    controls.maxPolarAngle = Math.PI * 0.7;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.0;
+    controls.target.set(0, 0.05, 0);
+    controls.update();
+  }
+
+  return { scene, camera, renderer, controls };
+}
+
+let heroRenderer, heroScene, heroControls, heroPhone;
+let modalRenderer, modalScene, modalControls, modalPhone;
+let cardScenes = [];
+let currentModalProduct = null;
+
+function setupHero() {
+  const container = document.getElementById('hero-canvas');
+  if (!container || !container.clientWidth) return;
+  container.innerHTML = '';
+
+  const { scene, camera, renderer } = makeScene(container, false);
+  heroScene = scene;
+  heroRenderer = renderer;
+
+  heroControls = new OrbitControls(camera, renderer.domElement);
+  heroControls.enableDamping = true;
+  heroControls.dampingFactor = 0.06;
+  heroControls.autoRotate = true;
+  heroControls.autoRotateSpeed = 1.0;
+  heroControls.minDistance = 2.5;
+  heroControls.maxDistance = 6;
+  heroControls.maxPolarAngle = Math.PI * 0.6;
+  heroControls.enableZoom = false;
+  heroControls.enablePan = false;
+  heroControls.target.set(0, 0.05, 0);
+  heroControls.update();
+
+  heroPhone = createPhoneModel('#334466');
+  heroPhone.position.set(0, 0.05, 0);
+  scene.add(heroPhone);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    heroControls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+}
+
+function setupCard3D(idx) {
+  var container = document.getElementById('card-3d-' + idx);
+  if (!container) return;
+  var placeholder = document.getElementById('card-placeholder-' + idx);
+  if (placeholder) placeholder.style.display = 'none';
+  container.querySelectorAll('canvas').forEach(function(c) { c.remove(); });
+
+  var p = products[idx];
+  var s = makeScene(container, false);
+  var phone = createPhoneModel(p.colors[0].hex);
+  phone.position.set(0, 0.05, 0);
+  s.scene.add(phone);
+
+  var ctrl = new OrbitControls(s.camera, s.renderer.domElement);
+  ctrl.enableDamping = true;
+  ctrl.dampingFactor = 0.06;
+  ctrl.autoRotate = true;
+  ctrl.autoRotateSpeed = 1.2;
+  ctrl.minDistance = 2.8;
+  ctrl.maxDistance = 5;
+  ctrl.maxPolarAngle = Math.PI * 0.55;
+  ctrl.enableZoom = false;
+  ctrl.enablePan = false;
+  ctrl.target.set(0, 0.05, 0);
+  ctrl.update();
+
+  cardScenes.push({ renderer: s.renderer, scene: s.scene, camera: s.camera, ctrl: ctrl });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    ctrl.update();
+    s.renderer.render(s.scene, s.camera);
+  }
+  animate();
+}
+
+function startModal3D(p) {
+  currentModalProduct = p;
+  var viewer = document.getElementById('modal-viewer');
+  viewer.innerHTML = '';
+  viewer.querySelectorAll('canvas').forEach(function(c) { c.remove(); });
+
+  var s = makeScene(viewer, true);
+  modalScene = s.scene;
+  modalRenderer = s.renderer;
+  modalControls = s.controls;
+
+  modalPhone = createPhoneModel(p.colors[0].hex);
+  modalPhone.position.set(0, 0.05, 0);
+  modalScene.add(modalPhone);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    if (modalControls) modalControls.update();
+    if (modalRenderer && modalScene && modalControls) modalRenderer.render(modalScene, modalControls.object);
+  }
+  animate();
+}
+
+function stopModal3D() {
+  if (modalRenderer) { modalRenderer.dispose(); modalRenderer = null; }
+  modalScene = null;
+  modalControls = null;
+  modalPhone = null;
+  currentModalProduct = null;
+}
+
+function updateModalColor(hex) {
+  if (!modalPhone) return;
+  var newColor = new THREE.Color(hex);
+  newColor.multiplyScalar(0.85);
+  modalPhone.children.forEach(function(child) {
+    if (child.isMesh && child.material.color && child.position.z < -0.05) {
+      child.material.color.copy(newColor);
+    }
+  });
+}
+
+window._startModal3D = startModal3D;
+window._stopModal3D = stopModal3D;
+window._updateModalColor = updateModalColor;
+
+window.addEventListener('resize', function() {
+  cardScenes.forEach(function(s) {
+    var parent = s.renderer.domElement.parentElement;
+    if (parent && parent.clientWidth) {
+      s.renderer.setSize(parent.clientWidth, parent.clientHeight);
+      s.camera.aspect = parent.clientWidth / parent.clientHeight;
+      s.camera.updateProjectionMatrix();
+    }
+  });
+  if (modalRenderer && modalRenderer.domElement.parentElement) {
+    var p = modalRenderer.domElement.parentElement;
+    modalRenderer.setSize(p.clientWidth, p.clientHeight);
+  }
+  if (heroRenderer) {
+    var c = document.getElementById('hero-canvas');
+    if (c && c.clientWidth) heroRenderer.setSize(c.clientWidth, c.clientHeight);
+  }
+});
+
+// Init
+loadThreeJS().then(function(ok) {
+  if (!ok) {
+    document.getElementById('status-msg').textContent = '3D engine unavailable — showing previews';
+    return;
+  }
+  document.getElementById('status-msg').textContent = 'Loading 3D models...';
+  setupHero();
+  for (var i = 0; i < products.length; i++) {
+    setTimeout((function(idx) { return function() { setupCard3D(idx); }; })(i), i * 150);
+  }
+  setTimeout(function() {
+    document.getElementById('status-msg').textContent = 'Interactive 3D ready!';
+  }, products.length * 150 + 200);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seaplane Outpost — Procedural Three.js</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif}
+  canvas{display:block}
+  #ui{position:absolute;top:20px;left:20px;width:320px;pointer-events:all;z-index:10;color:#fff}
+  .dashboard{background:rgba(20,40,50,0.7);backdrop-filter:blur(10px);border:1px solid rgba(100,150,200,0.5);border-radius:16px;padding:20px}
+  .panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#9bb}
+  .status-tag{background:rgba(200,80,50,0.5);padding:2px 8px;border-radius:10px;font-size:10px}
+  .telemetry{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+  .telemetry-item{background:rgba(0,0,0,0.3);padding:8px;border-radius:8px}
+  .label{font-size:9px;color:#7fb3cc;margin-bottom:4px}
+  .value{font-size:14px;font-weight:600}
+  .btn-group{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+  button{background:rgba(30,50,70,0.8);border:1px solid rgba(100,150,200,0.5);color:#fff;padding:10px;border-radius:8px;cursor:pointer;font-size:12px}
+  button:hover{background:rgba(50,80,100,0.9)}
+  .view-btns{display:flex;gap:5px}
+  .view-btns button{flex:1;padding:6px;font-size:10px}
+  footer{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.25);pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <div class="dashboard">
+    <div class="panel-header">
+      <span>Flight Operations</span>
+      <span class="status-tag" id="status-tag">CIRCLING</span>
+    </div>
+    <div class="telemetry">
+      <div class="telemetry-item">
+        <div class="label">Local Time</div>
+        <div class="value" id="time-val">17:27</div>
+      </div>
+      <div class="telemetry-item">
+        <div class="label">Tradewind</div>
+        <div class="value" id="wind-val">ESE 11 kt</div>
+      </div>
+      <div class="telemetry-item">
+        <div class="label">Water Activity</div>
+        <div class="value" id="water-val">Light Chop</div>
+      </div>
+      <div class="telemetry-item">
+        <div class="label">Aircraft</div>
+        <div class="value">Island Circuit</div>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button onclick="handleTakeoff()">Take Off</button>
+      <button onclick="handleLand()">Land Back</button>
+    </div>
+    <div class="view-btns">
+      <button>Overview</button>
+      <button>Dock</button>
+      <button>Flight</button>
+    </div>
+  </div>
+</div>
+
+<footer>Built with <a href="https://nebulacloud.studio">NebulaCloud Studio</a></footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── DOM refs ─────────────────────────────────────────
+const statusTag=document.getElementById('status-tag');
+const timeVal=document.getElementById('time-val');
+const windVal=document.getElementById('wind-val');
+const waterVal=document.getElementById('water-val');
+
+function handleTakeoff(){flightState.phase='taxi_out';flightState.timer=0;}
+function handleLand(){flightState.phase='landing';flightState.timer=0;}
+
+// ─── Scene setup ───────────────────────────────────────
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x7ca8c4,0.00012);
+scene.background=new THREE.Color(0x4a7d9e);
+
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.5,600);
+camera.position.set(30,20,40);
+camera.lookAt(0,0,0);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.1;
+document.body.appendChild(renderer.domElement);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,0,0);
+controls.enableDamping=true;
+controls.dampingFactor=0.08;
+controls.minDistance=8;
+controls.maxDistance=120;
+controls.maxPolarAngle=Math.PI*0.48;
+controls.update();
+
+// ─── Lighting ─────────────────────────────────────────
+const sunDir=new THREE.Vector3(0.6,0.65,0.4).normalize();
+const sunColor=new THREE.Color(0xfff4e0);
+const ambientLight=new THREE.AmbientLight(0x3a5f7a,0.7);
+scene.add(ambientLight);
+const sunLight=new THREE.DirectionalLight(sunColor,4.5);
+sunLight.position.copy(sunDir.clone().multiplyScalar(80));
+sunLight.castShadow=true;
+sunLight.shadow.mapSize.set(2048,2048);
+sunLight.shadow.camera.near=0.5;
+sunLight.shadow.camera.far=200;
+sunLight.shadow.camera.left=-50;
+sunLight.shadow.camera.right=50;
+sunLight.shadow.camera.top=50;
+sunLight.shadow.camera.bottom=-50;
+sunLight.shadow.bias=-0.0003;
+scene.add(sunLight);
+const hemiLight=new THREE.HemisphereLight(0x87ceeb,0x2c4c3b,0.5);
+scene.add(hemiLight);
+
+// ─── Gerstner Water ────────────────────────────────────
+const WATER_SIZE=160;
+const WATER_SEGMENTS=256;
+const waterGeom=new THREE.PlaneGeometry(WATER_SIZE,WATER_SIZE,WATER_SEGMENTS,WATER_SEGMENTS);
+waterGeom.rotateX(-Math.PI/2);
+
+const gerstnerUniforms={
+  uTime:{value:0},
+  uWaveA:{value:[0.6,0.4,0.25,0.15,0.08]},
+  uWaveF:{value:[0.35,0.52,0.71,0.88,1.14]},
+  uWaveD:{value:[1.2,0.9,1.5,2.1,1.7]},
+  uWaveS:{value:[0.4,0.35,0.55,0.3,0.5]},
+  uWaveQ:{value:[0.5,0.45,0.38,0.42,0.36]},
+  uFogColor:{value:new THREE.Color(0x7ca8c4)},
+  uFogDensity:{value:0.00012},
+  uSunDir:{value:sunDir},
+  uSunColor:{value:sunColor},
+  uAmbientColor:{value:new THREE.Color(0x3a5f7a)},
+  uSkyColor:{value:new THREE.Color(0x4a7d9e)},
+  uDeepColor:{value:new THREE.Color(0x0a2a3a)},
+  uShallowColor:{value:new THREE.Color(0x1a5a6a)},
+};
+
+const waterVertGLSL=`
+  varying vec3 vWorldPos;
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  varying float vWaveHeight;
+  varying vec2 vUv;
+
+  uniform float uTime;
+  uniform float uWaveA[5];
+  uniform float uWaveF[5];
+  uniform float uWaveD[5];
+  uniform float uWaveS[5];
+  uniform float uWaveQ[5];
+
+  const float PI=3.14159265;
+
+  float gerstnerWave(vec2 p, float A, float F, vec2 D, float S, float Q, out vec3 dP) {
+    float w=2.0*PI*F;
+    float phase=w*dot(D,p)+S*uTime;
+    float c=cos(phase);
+    float s=sin(phase);
+    float WA=w*A;
+    dP.x=-D.x*WA*s;
+    dP.y=Q*WA*c;
+    dP.z=-D.y*WA*s;
+    return A*c;
+  }
+
+  void main() {
+    vec3 pos=position;
+    vec2 p=pos.xz;
+    vec3 dP=vec3(0.0);
+    float height=0.0;
+
+    vec2 dirs[5];
+    dirs[0]=vec2(0.7,0.3);
+    dirs[1]=vec2(-0.4,0.8);
+    dirs[2]=vec2(0.2,-0.6);
+    dirs[3]=vec2(-0.55,0.25);
+    dirs[4]=vec2(0.35,-0.45);
+
+    vec3 tam=vec3(0.0);
+    for(int i=0;i<5;i++){
+      vec2 D=normalize(dirs[i]);
+      vec3 dp;
+      height+=gerstnerWave(p,uWaveA[i],uWaveF[i],D,uWaveS[i],uWaveQ[i],dp);
+      tam+=dp;
+    }
+    pos.y+=height;
+    vec3 bit=vec3(1.0-tam.x,tam.y,1.0-tam.z);
+    vec3 norm=normalize(cross(bit,vec3(tam.x,1.0,tam.z)));
+    norm=mix(normal,normalize(norm+vec3(0,1,0)),0.7);
+
+    vWorldPos=pos;
+    vNormal=norm;
+    vWaveHeight=height;
+    vUv=uv;
+
+    vec4 worldPos=modelMatrix*vec4(pos,1.0);
+    vViewDir=normalize(cameraPosition-worldPos.xyz);
+
+    gl_Position=projectionMatrix*modelViewMatrix*vec4(pos,1.0);
+  }
+`;
+
+const waterFragGLSL=`
+  varying vec3 vWorldPos;
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  varying float vWaveHeight;
+  varying vec2 vUv;
+
+  uniform vec3 uFogColor;
+  uniform float uFogDensity;
+  uniform vec3 uSunDir;
+  uniform vec3 uSunColor;
+  uniform vec3 uAmbientColor;
+  uniform vec3 uSkyColor;
+  uniform vec3 uDeepColor;
+  uniform vec3 uShallowColor;
+  uniform float uTime;
+
+  void main() {
+    vec3 N=normalize(vNormal);
+    vec3 V=normalize(vViewDir);
+    vec3 L=normalize(uSunDir);
+    vec3 H=normalize(L+V);
+
+    float NdotL=max(dot(N,L),0.0);
+    float NdotV=max(dot(N,V),0.0);
+    float NdotH=max(dot(N,H),0.0);
+
+    // Fresnel
+    float F0=0.02;
+    float fresnel=F0+(1.0-F0)*pow(1.0-NdotV,5.0);
+
+    // Specular
+    float spec=pow(NdotH,256.0)*0.55;
+
+    // Water color (depth-based)
+    float depthFactor=smoothstep(-1.5,1.5,vWaveHeight);
+    vec3 waterColor=mix(uDeepColor,uShallowColor,depthFactor);
+
+    // Sun reflection
+    vec3 refDir=reflect(-V,N);
+    float sunRefl=pow(max(dot(refDir,L),0.0),512.0)*0.7;
+    float sunGlow=pow(max(dot(refDir,L),0.0),32.0)*0.18;
+
+    // Sky reflection
+    float skyRefl=pow(1.0-NdotV,3.0)*0.35;
+
+    // Subsurface scatter
+    float sss=pow(NdotL*0.5+0.5,4.0)*0.12;
+
+    // Foam at crests
+    float foam=smoothstep(0.15,0.5,vWaveHeight)*0.3;
+    float foamDetail=smoothstep(0.08,0.35,vWaveHeight)*0.15;
+
+    // Combine
+    vec3 diffuse=waterColor*uAmbientColor*0.7;
+    diffuse+=waterColor*uSunColor*NdotL*0.55;
+    vec3 specular=uSunColor*(spec*0.5+sunRefl*0.55+sunGlow*0.25);
+    vec3 reflection=mix(uSkyColor,vec3(1),0.6)*fresnel*0.4;
+    vec3 foamColor=mix(vec3(0.85,0.9,0.95),vec3(1),foamDetail)+foam;
+    vec3 sssColor=uSunColor*sss*vec3(0.2,0.5,0.7);
+
+    vec3 col=diffuse+specular+reflection+sssColor;
+    col=mix(col,foamColor,foam*0.4+foamDetail*0.25);
+
+    // Edge darkening
+    float edge=pow(1.0-abs(NdotV),2.5);
+    col=mix(col,uDeepColor*0.6,edge*0.35);
+
+    // Fog
+    float dist=length(vWorldPos-cameraPosition);
+    float fog=1.0-exp(-uFogDensity*dist*dist);
+    col=mix(col,uFogColor,fog);
+
+    gl_FragColor=vec4(col,0.92);
+  }
+`;
+
+const waterMaterial=new THREE.ShaderMaterial({
+  uniforms:gerstnerUniforms,
+  vertexShader:waterVertGLSL,
+  fragmentShader:waterFragGLSL,
+  transparent:true,
+  side:THREE.DoubleSide,
+  depthWrite:true,
+});
+const waterMesh=new THREE.Mesh(waterGeom,waterMaterial);
+waterMesh.receiveShadow=true;
+waterMesh.renderOrder=1;
+scene.add(waterMesh);
+
+// Height query helper
+function getWaterHeight(x,z){
+  const uniforms=gerstnerUniforms;
+  const uA=uniforms.uWaveA.value;
+  const uF=uniforms.uWaveF.value;
+  const uS=uniforms.uWaveS.value;
+  const dirs=[[0.7,0.3],[-0.4,0.8],[0.2,-0.6],[-0.55,0.25],[0.35,-0.45]];
+  let h=0;
+  const t=uniforms.uTime.value;
+  for(let i=0;i<5;i++){
+    const Dx=dirs[i][0],Dy=dirs[i][1];
+    const dl=Math.sqrt(Dx*Dx+Dy*Dy);
+    const dx=Dx/dl,dy=Dy/dl;
+    const w=2*Math.PI*uF[i];
+    const phase=w*(dx*x+dy*z)+uS[i]*t;
+    h+=uA[i]*Math.cos(phase);
+  }
+  return h;
+}
+
+// ─── Sky Dome ──────────────────────────────────────────
+const skyGeom=new THREE.SphereGeometry(100,64,32);
+const skyMat=new THREE.ShaderMaterial({
+  uniforms:{
+    uSunDir:{value:sunDir},
+    uTime:{value:0},
+  },
+  vertexShader:`
+    varying vec3 vPos;
+    varying vec3 vWorldPos;
+    void main(){
+      vec4 wp=modelMatrix*vec4(position,1.0);
+      vWorldPos=wp.xyz;
+      vPos=position;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+    }
+  `,
+  fragmentShader:`
+    varying vec3 vPos;
+    varying vec3 vWorldPos;
+    uniform vec3 uSunDir;
+    uniform float uTime;
+    void main(){
+      vec3 dir=normalize(vPos);
+      float sunAngle=dot(dir,uSunDir);
+      float horizon=pow(1.0-abs(dir.y),4.0);
+
+      // Sky gradient
+      vec3 topColor=vec3(0.25,0.45,0.78);
+      vec3 horizonColor=vec3(0.55,0.72,0.88);
+      vec3 lowColor=vec3(0.62,0.78,0.9);
+
+      float y=dir.y;
+      vec3 sky=mix(horizonColor,topColor,smoothstep(0.0,0.4,y));
+      sky=mix(lowColor,sky,smoothstep(-0.05,0.15,y));
+
+      // Sun glow
+      float glow=exp(sunAngle*8.0-8.0)*0.3;
+      float disc=exp(sunAngle*200.0-200.0)*0.9;
+      sky+=vec3(1.0,0.95,0.6)*glow;
+      sky+=vec3(1.0,0.98,0.9)*disc;
+
+      // Horizon haze
+      sky=mix(sky,horizonColor*0.9,horizon*0.35);
+
+      gl_FragColor=vec4(sky,1.0);
+    }
+  `,
+  side:THREE.BackSide,
+  depthWrite:false,
+});
+const skyDome=new THREE.Mesh(skyGeom,skyMat);
+skyDome.renderOrder=-1;
+scene.add(skyDome);
+
+// ─── Clouds ────────────────────────────────────────────
+const clouds=new THREE.Group();
+for(let i=0;i<40;i++){
+  const cloudGrp=new THREE.Group();
+  const n=2+Math.floor(Math.random()*4);
+  for(let j=0;j<n;j++){
+    const r=1.2+Math.random()*2.5;
+    const g=new THREE.SphereGeometry(r,8,6);
+    const m=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:0.55+Math.random()*0.3,roughness:1,metalness:0,depthWrite:false});
+    const s=new THREE.Mesh(g,m);
+    s.position.set((Math.random()-0.5)*3,r*0.2,(Math.random()-0.5)*2.5);
+    s.scale.set(1,0.35+Math.random()*0.3,1);
+    cloudGrp.add(s);
+  }
+  const angle=Math.random()*Math.PI*2;
+  const rad=35+Math.random()*40;
+  cloudGrp.position.set(Math.cos(angle)*rad,28+Math.random()*22,Math.sin(angle)*rad);
+  cloudGrp.rotation.y=Math.random()*Math.PI*2;
+  cloudGrp.userData={speed:0.003+Math.random()*0.012,angle,rad};
+  clouds.add(cloudGrp);
+}
+scene.add(clouds);
+
+// ─── Island ──────────────────────────────────────────
+const island=new THREE.Group();
+const islandBase=new THREE.Mesh(new THREE.CylinderGeometry(8,6,2,32),new THREE.MeshStandardMaterial({color:0xdab970,roughness:0.9}));
+islandBase.scale.set(1,0.4,1);
+island.add(islandBase);
+// Rocks
+for(let i=0;i<8;i++){
+  const r=new THREE.Mesh(new THREE.IcosahedronGeometry(0.5+Math.random(),0),new THREE.MeshStandardMaterial({color:0x888888,roughness:0.8}));
+  const a=Math.random()*Math.PI*2;
+  r.position.set(Math.cos(a)*7,0.4,Math.sin(a)*5);
+  island.add(r);
+}
+// Trees
+for(let i=0;i<12;i++){
+  const tree=new THREE.Group();
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.3,1.5,6),new THREE.MeshStandardMaterial({color:0x5c4033}));
+  tree.add(trunk);
+  const leaves=new THREE.Mesh(new THREE.ConeGeometry(0.8,1.5,8),new THREE.MeshStandardMaterial({color:0x2d5a27}));
+  leaves.position.y=1.5;
+  tree.add(leaves);
+  const a=Math.random()*Math.PI*2;
+  tree.position.set(Math.cos(a)*4,0.7,Math.sin(a)*4);
+  island.add(tree);
+}
+island.position.set(-18,0,8);
+scene.add(island);
+
+// ─── Workers ───────────────────────────────────────────
+const workers=[];
+function createWorker(x,z,color){
+  const w=new THREE.Group();
+  // Body
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.2,0.5,4,8),new THREE.MeshStandardMaterial({color,roughness:0.6}));
+  body.position.y=1.1;w.add(body);
+  // Head
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.18,8,6),new THREE.MeshStandardMaterial({color:0xf5c6a0,roughness:0.5}));
+  head.position.y=1.7;w.add(head);
+  // Hard hat
+  const hat=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,0.12,8),new THREE.MeshStandardMaterial({color:0xffcc00,roughness:0.4}));
+  hat.position.y=1.84;w.add(hat);
+  const hatBrim=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.04,8),new THREE.MeshStandardMaterial({color:0xffcc00,roughness:0.4}));
+  hatBrim.position.y=1.78;w.add(hatBrim);
+  // Arms
+  const armGeom=new THREE.CapsuleGeometry(0.07,0.4,4,6);
+  const lArm=new THREE.Mesh(armGeom,new THREE.MeshStandardMaterial({color,roughness:0.6}));
+  lArm.position.set(-0.25,1.3,0);lArm.rotation.z=0.4;w.add(lArm);
+  const rArm=new THREE.Mesh(armGeom,new THREE.MeshStandardMaterial({color,roughness:0.6}));
+  rArm.position.set(0.25,1.3,0);rArm.rotation.z=-0.4;w.add(rArm);
+  // Legs
+  const legGeom=new THREE.CapsuleGeometry(0.08,0.45,4,6);
+  const lLeg=new THREE.Mesh(legGeom,new THREE.MeshStandardMaterial({color:0x333344,roughness:0.7}));
+  lLeg.position.set(-0.1,0.55,0);w.add(lLeg);
+  const rLeg=new THREE.Mesh(legGeom,new THREE.MeshStandardMaterial({color:0x333344,roughness:0.7}));
+  rLeg.position.set(0.1,0.55,0);w.add(rLeg);
+
+  w.position.set(x,getWaterHeight(x,z)+0.35,z);
+  w.userData={
+    baseX:x,baseZ:z,
+    lArm,rArm,body,legs:[lLeg,rLeg],
+    task:['carry','inspect','walk','idle'][Math.floor(Math.random()*4)],
+    phase:Math.random()*Math.PI*2,
+    speed:0.3+Math.random()*0.5,
+  };
+  w.castShadow=true;
+  scene.add(w);
+  workers.push(w);
+  return w;
+}
+
+createWorker(-20,4.5,0x3355aa);
+createWorker(-16,6,0x338844);
+createWorker(-19,-2,0xaa5533);
+createWorker(-14,-3.5,0x4466aa);
+
+// ─── Seaplane ──────────────────────────────────────────
+const planeGrp=new THREE.Group();
+
+// Fuselage
+const fuseGeom=new THREE.CapsuleGeometry(0.55,3.5,8,12);
+const fuseMat=new THREE.MeshStandardMaterial({color:0xe8e8e8,roughness:0.3,metalness:0.15});
+const fuselage=new THREE.Mesh(fuseGeom,fuseMat);
+fuselage.rotation.x=Math.PI/2;
+fuselage.scale.set(1,1,1.15);
+fuselage.castShadow=true;
+planeGrp.add(fuselage);
+
+// Cockpit
+const cockpitGeom=new THREE.SphereGeometry(0.5,8,6,0,Math.PI*2,0,Math.PI*0.55);
+const cockpitMat=new THREE.MeshStandardMaterial({color:0x88ccff,roughness:0.1,metalness:0.3,opacity:0.7,transparent:true});
+const cockpit=new THREE.Mesh(cockpitGeom,cockpitMat);
+cockpit.position.set(0,0.3,0.5);
+cockpit.rotation.x=-0.2;
+planeGrp.add(cockpit);
+
+// Main wings
+const wingShape=new THREE.Shape();
+wingShape.moveTo(0,-0.3);
+wingShape.quadraticCurveTo(1.2,-0.3,3.2,-0.05);
+wingShape.lineTo(3.2,0.05);
+wingShape.quadraticCurveTo(1.2,0.3,0,0.3);
+const wingExtrude={steps:1,depth:0.08,bevelEnabled:true,bevelThickness:0.02,bevelSize:0.02,bevelSegments:6};
+const wingGeom=new THREE.ExtrudeGeometry(wingShape,wingExtrude);
+const wingMat=new THREE.MeshStandardMaterial({color:0xdddddd,roughness:0.3,metalness:0.1});
+const wing=new THREE.Mesh(wingGeom,wingMat);
+wing.position.set(0,0.15,-0.1);
+wing.castShadow=true;
+planeGrp.add(wing);
+const wing2=wing.clone();
+wing2.position.z=-0.1;
+wing2.rotation.y=Math.PI;
+wing2.castShadow=true;
+planeGrp.add(wing2);
+
+// Horizontal stabilizer
+const hStabGeom=new THREE.BoxGeometry(2.2,0.06,0.5);
+const hStab=new THREE.Mesh(hStabGeom,wingMat);
+hStab.position.set(0,0.1,-2.1);
+hStab.castShadow=true;
+planeGrp.add(hStab);
+
+// Vertical stabilizer
+const vStabGeom=new THREE.BoxGeometry(0.06,0.7,0.6);
+const vStab=new THREE.Mesh(vStabGeom,new THREE.MeshStandardMaterial({color:0xdd3333,roughness:0.4,metalness:0.1}));
+vStab.position.set(0,0.5,-2.1);
+vStab.castShadow=true;
+planeGrp.add(vStab);
+
+// Floats (pontoons)
+function createFloat(side){
+  const g=new THREE.Group();
+  const bodyGeom=new THREE.CapsuleGeometry(0.2,1.6,6,10);
+  const bodyMat=new THREE.MeshStandardMaterial({color:0x3a3a3a,roughness:0.25,metalness:0.7});
+  const b=new THREE.Mesh(bodyGeom,bodyMat);
+  b.rotation.x=Math.PI/2;
+  g.add(b);
+  // Float step
+  const stepGeom=new THREE.BoxGeometry(0.2,0.12,0.3);
+  const step=new THREE.Mesh(stepGeom,bodyMat);
+  step.position.set(0,-0.3,0.3);
+  g.add(step);
+  g.position.set(side*1.3,-0.85,0);
+  g.castShadow=true;
+  return g;
+}
+const leftFloat=createFloat(-1);
+const rightFloat=createFloat(1);
+planeGrp.add(leftFloat);
+planeGrp.add(rightFloat);
+
+// Propeller
+const propGrp=new THREE.Group();
+const propHub=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.15,8),new THREE.MeshStandardMaterial({color:0x555555,roughness:0.2,metalness:0.9}));
+propGrp.add(propHub);
+for(let i=0;i<3;i++){
+  const bladeGeom=new THREE.BoxGeometry(0.06,0.8,0.12);
+  const blade=new THREE.Mesh(bladeGeom,new THREE.MeshStandardMaterial({color:0x222222,roughness:0.3,metalness:0.5}));
+  blade.position.y=0.4;
+  blade.rotation.z=(i/3)*Math.PI*2;
+  propGrp.add(blade);
+}
+propGrp.position.set(0,0,2.1);
+propGrp.name='propeller';
+planeGrp.add(propGrp);
+
+// Engine cowling
+const cowlGeom=new THREE.CylinderGeometry(0.45,0.5,0.6,12,1,true);
+const cowlMat=new THREE.MeshStandardMaterial({color:0x444444,roughness:0.2,metalness:0.8});
+const cowl=new THREE.Mesh(cowlGeom,cowlMat);
+cowl.position.set(0,0,1.8);
+planeGrp.add(cowl);
+const cowlCap=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.35,0.2,12),cowlMat);
+cowlCap.position.set(0,0,2.1);
+planeGrp.add(cowlCap);
+
+// Registration markings
+const regStripGeom=new THREE.PlaneGeometry(0.15,1.4);
+const regStrip=new THREE.Mesh(regStripGeom,new THREE.MeshStandardMaterial({color:0xcc2222,roughness:0.4,side:THREE.DoubleSide}));
+regStrip.position.set(0,0.01,-0.3);
+regStrip.rotation.x=Math.PI/2;
+planeGrp.add(regStrip);
+
+planeGrp.position.set(4,getWaterHeight(4,0)+0.6,0);
+planeGrp.rotation.y=0.5;
+planeGrp.rotation.z=-0.02;
+planeGrp.castShadow=true;
+scene.add(planeGrp);
+
+// ─── Wake System ───────────────────────────────────────
+const wakePoints=[];
+const MAX_WAKE=200;
+const wakeGeom=new THREE.BufferGeometry();
+const wakePositions=new Float32Array(MAX_WAKE*3);
+const wakeAlphas=new Float32Array(MAX_WAKE);
+const wakeSizes=new Float32Array(MAX_WAKE);
+wakeGeom.setAttribute('position',new THREE.BufferAttribute(wakePositions,3));
+wakeGeom.setAttribute('alpha',new THREE.BufferAttribute(wakeAlphas,1));
+wakeGeom.setAttribute('size',new THREE.BufferAttribute(wakeSizes,1));
+const wakeMat=new THREE.ShaderMaterial({
+  uniforms:{uTime:{value:0}},
+  vertexShader:`
+    attribute float alpha;
+    attribute float size;
+    varying float vAlpha;
+    uniform float uTime;
+    void main(){
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      gl_PointSize=size*(120.0/-mv.z);
+      gl_Position=projectionMatrix*mv;
+      vAlpha=alpha;
+    }
+  `,
+  fragmentShader:`
+    varying float vAlpha;
+    void main(){
+      float d=length(gl_PointCoord-0.5)*2.0;
+      float a=smoothstep(1.0,0.0,d)*vAlpha*0.7;
+      gl_FragColor=vec4(1.0,1.0,1.0,a);
+    }
+  `,
+  transparent:true,
+  depthWrite:false,
+  blending:THREE.AdditiveBlending,
+});
+const wakeMesh=new THREE.Points(wakeGeom,wakeMat);
+wakeMesh.renderOrder=2;
+scene.add(wakeMesh);
+
+// ─── Spray Particles ───────────────────────────────────
+const sprayParticles=[];
+const MAX_SPRAY=150;
+const sprayGeom=new THREE.BufferGeometry();
+const sprayPositions=new Float32Array(MAX_SPRAY*3);
+const sprayVelocities=[];
+const sprayLife=[];
+sprayGeom.setAttribute('position',new THREE.BufferAttribute(sprayPositions,3));
+const sprayMat=new THREE.PointsMaterial({color:0xaaddff,size:0.15,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.NormalBlending});
+const sprayMesh=new THREE.Points(sprayGeom,sprayMat);
+sprayMesh.renderOrder=3;
+scene.add(sprayMesh);
+
+function emitSpray(x,y,z,vx,vy,vz){
+  for(let i=0;i<sprayVelocities.length;i++){
+    if(sprayLife[i]<=0){
+      sprayPositions[i*3]=x;sprayPositions[i*3+1]=y;sprayPositions[i*3+2]=z;
+      sprayVelocities[i]={x:vx+(Math.random()-0.5)*0.8,y:vy+Math.random()*1.5,z:vz+(Math.random()-0.5)*0.8};
+      sprayLife[i]=0.4+Math.random()*0.6;
+      return;
+    }
+  }
+  if(sprayVelocities.length<MAX_SPRAY){
+    sprayPositions.push(x,y,z);
+    sprayVelocities.push({x:vx+(Math.random()-0.5)*0.8,y:vy+Math.random()*1.5,z:vz+(Math.random()-0.5)*0.8});
+    sprayLife.push(0.4+Math.random()*0.6);
+  }
+}
+for(let i=0;i<MAX_SPRAY;i++){sprayLife.push(0);sprayVelocities.push({x:0,y:0,z:0});}
+
+// ─── Weather System ────────────────────────────────────
+const weather={
+  type:'clear',
+  cloudCover:0.4,
+  rainIntensity:0,
+  windSpeed:4,
+  windDir:0.3,
+  transitionTimer:0,
+};
+const rainDrops=[];
+const MAX_RAIN=600;
+const rainGeom=new THREE.BufferGeometry();
+const rainPositions=new Float32Array(MAX_RAIN*3);
+rainGeom.setAttribute('position',new THREE.BufferAttribute(rainPositions,3));
+const rainMat=new THREE.PointsMaterial({color:0x8899cc,size:0.08,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+const rainMesh=new THREE.Points(rainGeom,rainMat);
+rainMesh.visible=false;
+scene.add(rainMesh);
+for(let i=0;i<MAX_RAIN;i++){
+  rainPositions[i*3]=(Math.random()-0.5)*80;
+  rainPositions[i*3+1]=Math.random()*40;
+  rainPositions[i*3+2]=(Math.random()-0.5)*80;
+}
+
+// ─── Flight State Machine ──────────────────────────────
+const flightState={
+  phase:'idle', // idle,taxi_out,runup,takeoff_roll,climb,cruise,descent,landing,water_landing,taxi_in
+  timer:0,
+  altitude:0,
+  speed:0,
+  heading:0.5,
+  targetHeading:0.5,
+  pos:new THREE.Vector3(4,0,0),
+  throttle:0,
+};
+
+const FLIGHT_PATHS={
+  idle:{duration:3},
+  taxi_out:{duration:6,targetX:-5,targetZ:-8,targetH:-0.8,throttle:0.2,targetSpeed:4},
+  runup:{duration:2,throttle:0.5,targetSpeed:6},
+  takeoff_roll:{duration:5,targetX:-18,targetZ:-22,targetH:0.8,throttle:1,targetSpeed:22,targetAlt:0},
+  climb:{duration:5,targetAlt:35,targetSpeed:35,throttle:0.9,targetH:1.2},
+  cruise:{duration:8,targetAlt:40,targetSpeed:38,throttle:0.75,targetH:2.5},
+  descent:{duration:5,targetAlt:8,targetSpeed:28,throttle:0.5,targetH:4.2},
+  landing:{duration:4,targetAlt:0.5,targetSpeed:18,throttle:0.3,targetH:5.0},
+  water_landing:{duration:3,targetAlt:0,targetSpeed:6,throttle:0.15,targetH:5.5},
+  taxi_in:{duration:5,targetX:-2,targetZ:2,targetH:5.8,throttle:0.15,targetSpeed:3},
+};
+
+const phaseOrder=['idle','taxi_out','runup','takeoff_roll','climb','cruise','descent','landing','water_landing','taxi_in','idle'];
+
+// ─── Buoys / Markers ───────────────────────────────────
+for(let i=0;i<6;i++){
+  const angle=(i/6)*Math.PI*2+0.3;
+  const dist=18+Math.random()*5;
+  const bx=Math.cos(angle)*dist;
+  const bz=Math.sin(angle)*dist;
+  const buoyGrp=new THREE.Group();
+  const buoyBody=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,6),new THREE.MeshStandardMaterial({color:0xff6600,roughness:0.5,emissive:0x331100,emissiveIntensity:0.3}));
+  buoyGrp.add(buoyBody);
+  const buoyPole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.6,6),new THREE.MeshStandardMaterial({color:0x444444}));
+  buoyPole.position.y=-0.5;
+  buoyGrp.add(buoyPole);
+  buoyGrp.position.set(bx,getWaterHeight(bx,bz)+0.15,bz);
+  buoyGrp.userData={bx,bz};
+  buoyGrp.castShadow=true;
+  scene.add(buoyGrp);
+}
+
+// ─── Environment details ───────────────────────────────
+// Seabirds
+const seabirds=[];
+for(let i=0;i<5;i++){
+  const birdGrp=new THREE.Group();
+  const birdBody=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.2,4),new THREE.MeshStandardMaterial({color:0xffffff}));
+  birdBody.rotation.x=Math.PI/2;
+  birdGrp.add(birdBody);
+  const bwx=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.02,0.08),new THREE.MeshStandardMaterial({color:0xeeeeee}));
+  birdGrp.add(bwx);
+  birdGrp.position.set((Math.random()-0.5)*30,8+Math.random()*10,(Math.random()-0.5)*30);
+  birdGrp.userData={
+    radius:12+Math.random()*20,
+    angle:Math.random()*Math.PI*2,
+    height:7+Math.random()*12,
+    speed:0.3+Math.random()*0.7,
+    bank:0,
+  };
+  scene.add(birdGrp);
+  seabirds.push(birdGrp);
+}
+
+// ─── Animation Loop ────────────────────────────────────
+const clock=new THREE.Clock();
+let lastSprayTime=0;
+let flightPhaseDisplayTimer=0;
+let currentFlightPhase='';
+
+function lerp(a,b,t){return a+(b-a)*t;}
+
+function lerpAngle(a,b,t){
+  let d=b-a;
+  while(d>Math.PI)d-=Math.PI*2;
+  while(d<-Math.PI)d+=Math.PI*2;
+  return a+d*t;
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.1);
+  const t=performance.now()*0.001;
+
+  // Update water
+  gerstnerUniforms.uTime.value=t;
+
+  // Update sky
+  skyMat.uniforms.uTime.value=t;
+
+  // Weather transitions
+  weather.transitionTimer-=dt;
+  if(weather.transitionTimer<=0){
+    // Random weather changes
+    const r=Math.random();
+    if(r<0.6){
+      weather.type='clear';
+      weather.cloudCover=0.2+Math.random()*0.3;
+      weather.rainIntensity=0;
+    }else if(r<0.85){
+      weather.type='overcast';
+      weather.cloudCover=0.7+Math.random()*0.3;
+      weather.rainIntensity=0;
+    }else{
+      weather.type='rain';
+      weather.cloudCover=0.85+Math.random()*0.15;
+      weather.rainIntensity=0.4+Math.random()*0.6;
+    }
+    weather.windSpeed=2+Math.random()*8;
+    weather.windDir+=(Math.random()-0.5)*0.5;
+    weather.transitionTimer=12+Math.random()*25;
+    weatherText.textContent=weather.type==='clear'?'Clear skies':weather.type==='overcast'?'Overcast':'Light rain';
+  }
+
+  // Smooth weather transitions
+  const targetOpacity=weather.rainIntensity*0.45;
+  rainMat.opacity=lerp(rainMat.opacity,targetOpacity,dt*1.5);
+  rainMesh.visible=rainMat.opacity>0.01;
+  if(rainMesh.visible){
+    for(let i=0;i<MAX_RAIN;i++){
+      rainPositions[i*3+1]-=dt*(8+weather.rainIntensity*6);
+      rainPositions[i*3]+=dt*weather.windSpeed*0.3*Math.cos(weather.windDir);
+      rainPositions[i*3+2]+=dt*weather.windSpeed*0.3*Math.sin(weather.windDir);
+      if(rainPositions[i*3+1]<0){
+        rainPositions[i*3+1]=35+Math.random()*10;
+        rainPositions[i*3]=(Math.random()-0.5)*80;
+        rainPositions[i*3+2]=(Math.random()-0.5)*80;
+      }
+    }
+    rainGeom.attributes.position.needsUpdate=true;
+  }
+
+  // Update clouds
+  clouds.children.forEach(c=>{
+    c.userData.angle+=c.userData.speed*dt;
+    c.position.x=Math.cos(c.userData.angle)*c.userData.rad;
+    c.position.z=Math.sin(c.userData.angle)*c.userData.rad;
+  });
+
+  // Sky/fog adapts slightly to weather
+  const fogTarget=new THREE.Color().lerpColors(new THREE.Color(0x7ca8c4),new THREE.Color(0x8899aa),weather.cloudCover);
+  scene.fog.color.lerp(fogTarget,dt*0.3);
+  scene.background.lerp(fogTarget,dt*0.3);
+  skyDome.material.uniforms.uSunDir.value.copy(sunDir);
+
+  // Sun moves slowly
+  const sunAngle=t*0.08;
+  sunDir.set(Math.cos(sunAngle)*0.55,0.6+Math.sin(sunAngle)*0.25,0.4).normalize();
+  sunLight.position.copy(sunDir.clone().multiplyScalar(80));
+  sunLight.intensity=3.5+Math.max(0,sunDir.y)*2.5;
+  ambientLight.intensity=0.5+Math.max(0,sunDir.y)*0.5;
+  gerstnerUniforms.uSunDir.value.copy(sunDir);
+
+  // ─── Flight state machine ────────────────────────────
+  const fs=flightState;
+  fs.timer+=dt;
+  const cfg=FLIGHT_PATHS[fs.phase];
+  if(cfg&&fs.timer>=cfg.duration){
+    const idx=phaseOrder.indexOf(fs.phase);
+    const nextPhase=phaseOrder[(idx+1)%phaseOrder.length];
+    fs.phase=nextPhase;
+    fs.timer=0;
+    if(fs.phase!==currentFlightPhase){
+      currentFlightPhase=fs.phase;
+    }
+  }
+
+  // Apply flight phase
+  const cfg2=FLIGHT_PATHS[fs.phase];
+  if(cfg2){
+    if(cfg2.throttle!==undefined)fs.throttle=lerp(fs.throttle,cfg2.throttle,dt*2);
+    if(cfg2.targetSpeed!==undefined)fs.speed=lerp(fs.speed,cfg2.targetSpeed,dt*1.5);
+    if(cfg2.targetAlt!==undefined)fs.altitude=lerp(fs.altitude,cfg2.targetAlt,dt*1.2);
+    if(cfg2.targetH!==undefined)fs.targetHeading=cfg2.targetH;
+
+    // Positional movement for taxi phases
+    if(fs.phase==='taxi_out'||fs.phase==='taxi_in'){
+      fs.heading=lerpAngle(fs.heading,fs.targetHeading,dt*1.5);
+      const spd=fs.speed*0.15;
+      fs.pos.x+=Math.cos(fs.heading)*spd*dt;
+      fs.pos.z+=Math.sin(fs.heading)*spd*dt;
+    }
+    if(fs.phase==='takeoff_roll'){
+      fs.heading=lerpAngle(fs.heading,fs.targetHeading,dt*2);
+      const spd=fs.speed*0.25;
+      fs.pos.x+=Math.cos(fs.heading)*spd*dt;
+      fs.pos.z+=Math.sin(fs.heading)*spd*dt;
+    }
+    if(fs.phase==='climb'||fs.phase==='cruise'||fs.phase==='descent'){
+      fs.heading=lerpAngle(fs.heading,fs.targetHeading,dt*0.6);
+      const spd=fs.speed*0.25;
+      fs.pos.x+=Math.cos(fs.heading)*spd*dt;
+      fs.pos.z+=Math.sin(fs.heading)*spd*dt;
+    }
+    if(fs.phase==='landing'||fs.phase==='water_landing'){
+      fs.heading=lerpAngle(fs.heading,fs.targetHeading,dt*1.0);
+      const spd=fs.speed*0.25;
+      fs.pos.x+=Math.cos(fs.heading)*spd*dt;
+      fs.pos.z+=Math.sin(fs.heading)*spd*dt;
+    }
+  }
+
+  // Apply plane position
+  const waterH=getWaterHeight(fs.pos.x,fs.pos.z);
+  const planeTargetY=waterH+fs.altitude+0.6;
+  planeGrp.position.x=lerp(planeGrp.position.x,fs.pos.x,dt*3);
+  planeGrp.position.z=lerp(planeGrp.position.z,fs.pos.z,dt*3);
+  planeGrp.position.y=lerp(planeGrp.position.y,planeTargetY,dt*4);
+  planeGrp.rotation.y=lerpAngle(planeGrp.rotation.y,fs.heading,dt*2);
+
+  // Wave-based pitch and roll
+  if(fs.altitude<1.5){
+    const fLeft=getWaterHeight(fs.pos.x+Math.cos(fs.heading+1.5)*1.5,fs.pos.z+Math.sin(fs.heading+1.5)*1.5);
+    const fRight=getWaterHeight(fs.pos.x+Math.cos(fs.heading-1.5)*1.5,fs.pos.z+Math.sin(fs.heading-1.5)*1.5);
+    const fFore=getWaterHeight(fs.pos.x+Math.cos(fs.heading)*2,fs.pos.z+Math.sin(fs.heading)*2);
+    const fAft=getWaterHeight(fs.pos.x-Math.cos(fs.heading)*2,fs.pos.z-Math.sin(fs.heading)*2);
+    const roll=(fRight-fLeft)*0.8;
+    const pitch=(fFore-fAft)*0.4;
+    planeGrp.rotation.z=lerp(planeGrp.rotation.z,roll,dt*3);
+    planeGrp.rotation.x=lerp(planeGrp.rotation.x,pitch-0.04,dt*3);
+  }else{
+    planeGrp.rotation.z=lerp(planeGrp.rotation.z,fs.heading*0.05,dt*1.5);
+    planeGrp.rotation.x=lerp(planeGrp.rotation.x,-0.08,dt*1.5);
+  }
+
+  // Propeller spin
+  if(propGrp){
+    propGrp.rotation.z+=dt*(8+fs.throttle*35);
+  }
+
+  // ─── Wake generation ─────────────────────────────────
+  const planeSpeed=fs.speed*0.25;
+  if(planeSpeed>1&&fs.altitude<3){
+    const leftPt=planeGrp.position.clone().add(new THREE.Vector3(Math.cos(fs.heading+1.6)*1.3,0,Math.sin(fs.heading+1.6)*1.3));
+    const rightPt=planeGrp.position.clone().add(new THREE.Vector3(Math.cos(fs.heading-1.6)*1.3,0,Math.sin(fs.heading-1.6)*1.3));
+    leftPt.y=getWaterHeight(leftPt.x,leftPt.z);
+    rightPt.y=getWaterHeight(rightPt.x,rightPt.z);
+
+    if(t-lastSprayTime>0.03&&planeSpeed>3){
+      lastSprayTime=t;
+      wakePoints.push({x:leftPt.x,y:leftPt.y,z:leftPt.z,life:1});
+      wakePoints.push({x:rightPt.x,y:rightPt.y,z:rightPt.z,life:1});
+      // Spray
+      const spd=planeSpeed*0.4;
+      emitSpray(leftPt.x,leftPt.y+0.05,leftPt.z,
+        Math.cos(fs.heading+2.5)*spd,0.3,Math.sin(fs.heading+2.5)*spd);
+      emitSpray(rightPt.x,rightPt.y+0.05,rightPt.z,
+        Math.cos(fs.heading-2.5)*spd,0.3,Math.sin(fs.heading-2.5)*spd);
+    }
+  }
+
+  // Age wake points
+  for(let i=wakePoints.length-1;i>=0;i--){
+    wakePoints[i].life-=dt*0.25;
+    if(wakePoints[i].life<=0)wakePoints.splice(i,1);
+  }
+  while(wakePoints.length>MAX_WAKE)wakePoints.shift();
+
+  // Update wake buffer
+  for(let i=0;i<MAX_WAKE;i++){
+    if(i<wakePoints.length){
+      const wp=wakePoints[i];
+      wakePositions[i*3]=wp.x;
+      wakePositions[i*3+1]=wp.y+0.02;
+      wakePositions[i*3+2]=wp.z;
+      wakeAlphas[i]=wp.life;
+      wakeSizes[i]=wp.life*1.8;
+    }else{
+      wakePositions[i*3]=0;
+      wakePositions[i*3+1]=-100;
+      wakePositions[i*3+2]=0;
+      wakeAlphas[i]=0;
+      wakeSizes[i]=0;
+    }
+  }
+  wakeGeom.attributes.position.needsUpdate=true;
+  wakeGeom.attributes.alpha.needsUpdate=true;
+  wakeGeom.attributes.size.needsUpdate=true;
+  wakeMat.uniforms.uTime.value=t;
+
+  // ─── Spray particles ─────────────────────────────────
+  for(let i=0;i<sprayLife.length;i++){
+    if(sprayLife[i]<=0){
+      sprayPositions[i*3+1]=-100;
+      continue;
+    }
+    sprayLife[i]-=dt;
+    sprayPositions[i*3]+=sprayVelocities[i].x*dt;
+    sprayPositions[i*3+1]+=sprayVelocities[i].y*dt;
+    sprayPositions[i*3+2]+=sprayVelocities[i].z*dt;
+    sprayVelocities[i].y-=9.8*dt;
+    if(sprayPositions[i*3+1]<getWaterHeight(sprayPositions[i*3],sprayPositions[i*3+2])){
+      sprayLife[i]=0;
+    }
+  }
+  sprayGeom.attributes.position.needsUpdate=true;
+
+  // ─── Buoy bobbing ────────────────────────────────────
+  scene.children.forEach(c=>{
+    if(c.userData&&c.userData.bx!==undefined){
+      const wh=getWaterHeight(c.userData.bx,c.userData.bz);
+      c.position.y=wh+0.15;
+      c.rotation.z=Math.sin(t*1.3+c.userData.bx)*0.08;
+      c.rotation.x=Math.cos(t*1.1+c.userData.bz)*0.08;
+    }
+  });
+
+  // ─── Worker animation ────────────────────────────────
+  workers.forEach(w=>{
+    w.userData.phase+=dt*w.userData.speed;
+    const ph=w.userData.phase;
+    const wh=getWaterHeight(w.userData.baseX,w.userData.baseZ);
+    w.position.y=wh+0.35;
+
+    // Walk cycle
+    if(w.userData.task==='walk'){
+      w.userData.lArm.rotation.z=Math.sin(ph*3)*0.6+0.3;
+      w.userData.legs[0].rotation.x=Math.sin(ph*3)*0.5;
+      w.userData.legs[1].rotation.x=Math.sin(ph*3+Math.PI)*0.5;
+    }else if(w.userData.task==='carry'){
+      w.userData.lArm.rotation.z=Math.sin(ph*2)*0.15-0.6;
+      w.userData.rArm.rotation.z=Math.cos(ph*2)*0.15+0.6;
+    }else{
+      w.userData.lArm.rotation.z=Math.sin(ph*1.5)*0.25+0.3;
+    }
+    // Bob head
+    w.children[1].position.y=1.7+Math.abs(Math.sin(ph*2))*0.03;
+  });
+
+  // ─── Seabird animation ───────────────────────────────
+  seabirds.forEach(b=>{
+    b.userData.angle+=dt*b.userData.speed*0.4;
+    b.position.x=Math.cos(b.userData.angle)*b.userData.radius;
+    b.position.z=Math.sin(b.userData.angle)*b.userData.radius;
+    b.position.y=b.userData.height+Math.sin(t*2+b.userData.angle)*1.5;
+    b.rotation.y=-b.userData.angle+Math.PI/2;
+    b.rotation.z=Math.sin(t*4+b.userData.angle)*0.3;
+  });
+
+  // HUD update
+  statusTag.textContent=fs.phase.replace(/_/g,' ').toUpperCase();
+  timeVal.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  windVal.textContent='ESE '+Math.round(weather.windSpeed*2)+' kt';
+  waterVal.textContent=weather.rainIntensity>0.5?'Rough':weather.type==='clear'?'Light Chop':'Calm';
+
+  // Render
+  controls.target.copy(planeGrp.position);
+  controls.update();
+  renderer.render(scene,camera);
+}
+
+animate();
+
+// Resize handler
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// Keyboard controls
+window.addEventListener('keydown',(e)=>{
+  switch(e.key){
+    case '1':flightState.phase='taxi_out';flightState.timer=0;break;
+    case '2':flightState.phase='takeoff_roll';flightState.timer=0;break;
+    case '3':flightState.phase='cruise';flightState.timer=0;break;
+    case '4':flightState.phase='landing';flightState.timer=0;break;
+    case 'w':weather.transitionTimer=0;weather.type='rain';weather.rainIntensity=0.8;weather.cloudCover=0.9;break;
+    case 'c':weather.transitionTimer=0;weather.type='clear';weather.rainIntensity=0;weather.cloudCover=0.2;break;
+    case 'f':controls.target.copy(planeGrp.position);break;
+  }
+});
+
+console.log('%c🌊 Seaplane Outpost Ready %c| %cStudio AI Copilot %cby Nebula Cloud',
+  'font-size:16px;color:#4af;','','color:#88f;','');
+console.log('Controls: 1=Taxi  |  2=Takeoff  |  3=Cruise  |  4=Landing  |  W=Rain  |  C=Clear  |  F=Follow plane');
+</script>
+</body>
+</html>

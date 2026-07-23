@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIT Delhi Journey: The Road to CCoE</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; }
+        #canvas-container { width: 100vw; height: 100vh; }
+        #info-panel {
+            position: absolute; bottom: 20px; left: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            color: white;
+            padding: 20px; border-radius: 12px;
+            border: 1px solid #334155;
+            max-width: 400px;
+        }
+        h2 { margin: 0 0 10px 0; color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <h2 id="title">Starting Engine...</h2>
+        <p id="description">Driving through the NIT Delhi Project Journey.</p>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const events = [
+            { pos: new THREE.Vector3(-15, 0, 0), title: "July 2022: The Starting Line", desc: "Partnership discussion initiated with NIT Delhi Director." },
+            { pos: new THREE.Vector3(-8, 0, 0), title: "Oct 2022: The Demo", desc: "Successful CCoE platform demo. Excitement is high." },
+            { pos: new THREE.Vector3(0, 0, 0), title: "Nov-Dec 2022: The Muddy Road", desc: "Slow requirements collection. Institutional bureaucracy slows momentum." },
+            { pos: new THREE.Vector3(8, 0, 0), title: "Mar 2023: The Finish Line", desc: "Platform setup complete. Training finished. Deliverables ready." },
+            { pos: new THREE.Vector3(15, 0, 0), title: "Mar 14, 2023: The Roadblock", desc: "PAYMENT PUT ON HOLD (No valid reason). The journey stops here." }
+        ];
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(10, 10, 10);
+        scene.add(dirLight);
+
+        // Road
+        const roadGeo = new THREE.BoxGeometry(40, 0.2, 4);
+        const roadMat = new THREE.MeshPhongMaterial({ color: 0x334155 });
+        const road = new THREE.Mesh(roadGeo, roadMat);
+        scene.add(road);
+
+        // Checkpoints/Stops
+        events.forEach((ev, i) => {
+            const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3), new THREE.MeshPhongMaterial({ color: i === 4 ? 0xef4444 : 0x60a5fa }));
+            pillar.position.set(ev.pos.x, 1.5, 0);
+            scene.add(pillar);
+        });
+
+        // Car
+        const car = new THREE.Group();
+        const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 0.8), new THREE.MeshPhongMaterial({ color: 0x3b82f6 }));
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.6), new THREE.MeshPhongMaterial({ color: 0x1d4ed8 }));
+        roof.position.set(0, 0.4, 0);
+        car.add(base); car.add(roof);
+        scene.add(car);
+
+        // Animation logic
+        let t = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            t = (t + 0.003) % 1; // Move car
+
+            const x = THREE.MathUtils.lerp(-15, 15, t);
+            car.position.set(x, 0.5, 0);
+            
+            // Camera follow
+            camera.position.set(x - 5, 5, 10);
+            camera.lookAt(x, 0, 0);
+
+            // Update UI
+            const closest = events.reduce((prev, curr) => Math.abs(curr.pos.x - x) < Math.abs(prev.pos.x - x) ? curr : prev);
+            document.getElementById('title').innerText = closest.title;
+            document.getElementById('description').innerText = closest.desc;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+    <footer style="text-align:center;padding:12px;margin-top:24px;opacity:0.5;font-size:11px;font-family:system-ui;color:#666;"><a href="https://nebulacloud.studio" style="color:#3b82f6;text-decoration:none;">Built with NebulaCloud Studio</a></footer>
+</body>
+</html>

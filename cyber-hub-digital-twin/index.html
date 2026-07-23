@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Hub Gurgaon - 3D Digital Twin & Traffic Simulation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.185.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.185.1/examples/jsm/"
+        }
+    }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="dashboard-wrapper">
+        <header class="app-header">
+            <div class="header-left">
+                <i data-lucide="building-2" class="logo-icon pulsing"></i>
+                <div class="title-container">
+                    <h1>CYBER HUB DIGITAL TWIN</h1>
+                    <span class="subtitle">GURUGRAM URBAN PLANNING & TRAFFIC SIMULATION ENGINE v1.0</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <div class="telemetry-compact">
+                    <span class="label">STATUS:</span>
+                    <span class="value green" id="sim-status">RUNNING</span>
+                </div>
+                <div class="telemetry-compact">
+                    <span class="label">TIME:</span>
+                    <span class="value cyan" id="sim-time">08:00</span>
+                </div>
+                <div class="telemetry-compact">
+                    <span class="label">VEHICLES:</span>
+                    <span class="value yellow" id="vehicle-count">0</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="view-controls">
+                    <button class="btn btn-hud active" data-view="orbit" id="btn-orbit"><i data-lucide="rotate-3d"></i> ORBIT</button>
+                    <button class="btn btn-hud" data-view="top" id="btn-top"><i data-lucide="arrow-up"></i> TOP DOWN</button>
+                    <button class="btn btn-hud" data-view="street" id="btn-street"><i data-lucide="eye"></i> STREET</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <aside class="sidebar sidebar-left">
+                <div class="panel-section">
+                    <h2 class="panel-title"><i data-lucide="play-circle"></i> SIMULATION CONTROL</h2>
+                    <div class="control-group">
+                        <div class="btn-stack">
+                            <button class="btn btn-primary" id="btn-play-pause"><i data-lucide="pause"></i> PAUSE SIMULATION</button>
+                        </div>
+                        <div class="slider-control">
+                            <div class="slider-header">
+                                <span class="slider-lbl">Simulation Speed</span>
+                                <span class="slider-val" id="speed-val">1.0x</span>
+                            </div>
+                            <input type="range" min="1" max="10" value="1" class="slider" id="param-speed">
+                        </div>
+                        <div class="slider-control">
+                            <div class="slider-header">
+                                <span class="slider-lbl">Time of Day</span>
+                                <span class="slider-val" id="tod-val">08:00</span>
+                            </div>
+                            <input type="range" min="0" max="24" step="0.25" value="8" class="slider" id="param-time">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h2 class="panel-title"><i data-lucide="car"></i> TRAFFIC PARAMETERS</h2>
+                    <div class="control-group">
+                        <div class="slider-control">
+                            <div class="slider-header">
+                                <span class="slider-lbl">Spawn Rate (vehicles/min)</span>
+                                <span class="slider-val" id="spawn-val">20</span>
+                            </div>
+                            <input type="range" min="5" max="60" value="20" class="slider" id="param-spawn">
+                        </div>
+                        <div class="slider-control">
+                            <div class="slider-header">
+                                <span class="slider-lbl">Speed Limit (km/h)</span>
+                                <span class="slider-val" id="limit-val">40</span>
+                            </div>
+                            <input type="range" min="20" max="80" value="40" class="slider" id="param-speedlimit">
+                        </div>
+                        <div class="select-control">
+                            <label for="traffic-scenario" class="field-label">Traffic Scenario</label>
+                            <select id="traffic-scenario" class="dashboard-select">
+                                <option value="normal">Normal Flow</option>
+                                <option value="rush-morning">Morning Rush (7-10 AM)</option>
+                                <option value="rush-evening">Evening Rush (5-8 PM)</option>
+                                <option value="event">Event / Concert</option>
+                                <option value="accident">Accident Scenario</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h2 class="panel-title"><i data-lucide="layers"></i> VISUAL OVERLAYS</h2>
+                    <div class="layer-toggles">
+                        <div class="toggle-row">
+                            <span class="toggle-label"><i data-lucide="thermometer" class="red"></i> Congestion Heatmap</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-heatmap">
+                                <span class="slider-switch"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <span class="toggle-label"><i data-lucide="traffic-cone" class="orange"></i> Traffic Signals</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-signals" checked>
+                                <span class="slider-switch"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <span class="toggle-label"><i data-lucide="tag" class="cyan-text"></i> Building Labels</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-labels" checked>
+                                <span class="slider-switch"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <span class="toggle-label"><i data-lucide="git-branch" class="green"></i> Road Network</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-roadnetwork">
+                                <span class="slider-switch"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section stats-panel mt-auto">
+                    <h2 class="panel-title"><i data-lucide="cpu"></i> ENGINE TELEMETRY</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-lbl">FPS</span>
+                            <span class="stat-val green" id="fps-counter">60</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-lbl">VEHICLES</span>
+                            <span class="stat-val yellow" id="stat-vehicles">0</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-lbl">AVG SPEED</span>
+                            <span class="stat-val cyan" id="stat-avgspeed">0</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-lbl">CONGESTION</span>
+                            <span class="stat-val" id="stat-congestion">LOW</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <aside class="sidebar sidebar-right">
+                <div class="panel-section">
+                    <h2 class="panel-title"><i data-lucide="bar-chart-3"></i> TRAFFIC ANALYTICS</h2>
+                    <div class="analytics-box">
+                        <canvas id="chart-throughput" width="280" height="120"></canvas>
+                        <div class="analytics-label">Throughput (veh/min)</div>
+                    </div>
+                    <div class="analytics-box">
+                        <canvas id="chart-speed" width="280" height="120"></canvas>
+                        <div class="analytics-label">Average Speed (km/h)</div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h2 class="panel-title"><i data-lucide="activity"></i> LIVE METRICS</h2>
+                    <div class="metric-row">
+                        <span class="metric-lbl">Total Vehicles Entered</span>
+                        <span class="metric-val" id="metric-entered">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-lbl">Total Vehicles Exited</span>
+                        <span class="metric-val" id="metric-exited">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-lbl">Avg Wait Time (signals)</span>
+                        <span class="metric-val" id="metric-wait">0s</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-lbl">Max Queue Length</span>
+                        <span class="metric-val" id="metric-queue">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-lbl">Congestion Index</span>
+                        <span class="metric-val green" id="metric-congestion">0.12</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h2 class="panel-title"><i data-lucide="signal"></i> SIGNAL STATUS</h2>
+                    <div id="signal-status-list" class="signal-list">
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h2 class="panel-title"><i data-lucide="alert-triangle"></i> INCIDENTS</h2>
+                    <div id="incident-log" class="incident-list">
+                        <div class="incident-item">
+                            <span class="incident-time">08:00</span>
+                            <span class="incident-msg">Simulation initialized. All signals green.</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="app-hud">
+            <div class="hud-flex">
+                <div class="hud-group">
+                    <span class="hud-label"><i data-lucide="navigation"></i> CAMERA</span>
+                    <div class="btn-group">
+                        <button class="btn btn-hud" id="btn-reset-cam"><i data-lucide="home"></i> RESET</button>
+                        <button class="btn btn-hud" id="btn-follow"><i data-lucide="crosshair"></i> FOLLOW VEHICLE</button>
+                    </div>
+                </div>
+                <div class="hud-group">
+                    <span class="hud-label"><i data-lucide="wrench"></i> TOOLS</span>
+                    <div class="btn-group">
+                        <button class="btn btn-hud" id="btn-measure"><i data-lucide="ruler"></i> MEASURE</button>
+                        <button class="btn btn-hud red-glowing" id="btn-clear"><i data-lucide="trash-2"></i> CLEAR ALL</button>
+                    </div>
+                </div>
+                <div class="hud-group tool-feedback-group hidden" id="tool-banner">
+                    <span class="hud-label yellow" id="tool-banner-title">ACTIVE TOOL</span>
+                    <span class="value yellow" id="tool-banner-msg">Click on scene</span>
+                </div>
+                <div class="hud-group text-right">
+                    <span class="hud-label"><i data-lucide="map-pin"></i> CURSOR</span>
+                    <span class="value" id="cursor-coords">28.4595, 77.0266</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="telemetry-card" class="telemetry-hud-card">
+        <div class="tel-row">
+            <span class="tel-lbl">LAT:</span>
+            <span class="tel-val" id="tel-lat">28.4595</span>
+        </div>
+        <div class="tel-row">
+            <span class="tel-lbl">LNG:</span>
+            <span class="tel-val" id="tel-lng">77.0266</span>
+        </div>
+        <div class="tel-row">
+            <span class="tel-lbl">ALT:</span>
+            <span class="tel-val yellow" id="tel-alt">217m</span>
+        </div>
+    </div>
+
+    <script type="module" src="simulation.js"></script>
+</body>
+</html>

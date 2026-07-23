@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ward Change Summary Dashboard (2017-2022)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0}
+.header{background:linear-gradient(135deg,#1e293b,#0f172a);padding:24px 32px;border-bottom:1px solid #334155}
+.header h1{font-size:1.8rem;font-weight:700;background:linear-gradient(90deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .sub{color:#94a3b8;margin-top:4px;font-size:0.9rem}
+.stats-row{display:flex;gap:16px;padding:20px 32px;flex-wrap:wrap}
+.stat-card{background:#1e293b;border-radius:12px;padding:20px 24px;flex:1;min-width:140px;border:1px solid #334155;transition:transform .2s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card .label{color:#94a3b8;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px}
+.stat-card .value{font-size:2rem;font-weight:700;margin-top:4px}
+.stat-card .detail{color:#64748b;font-size:0.75rem;margin-top:4px}
+.a1{color:#60a5fa}.a2{color:#10b981}.a3{color:#f59e0b}.a4{color:#ef4444}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(450px,1fr));gap:20px;padding:0 32px 32px}
+.card{background:#1e293b;border-radius:12px;padding:20px;border:1px solid #334155}
+.card h3{font-size:1rem;margin-bottom:12px;color:#e2e8f0}
+.full{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;font-size:0.85rem}
+th{text-align:left;color:#94a3b8;font-weight:600;padding:10px 14px;border-bottom:2px solid #334155}
+td{padding:10px 14px;border-bottom:1px solid #1e293b}
+tr:hover{background:rgba(96,165,250,0.05)}
+.bar-cell{display:flex;align-items:center;gap:8px}
+.bar{height:8px;border-radius:4px;min-width:2px}
+.bar-s{background:#10b981}.bar-p{background:#f59e0b}.bar-d{background:#ef4444}
+tr:last-child{font-weight:700;border-top:2px solid #334155}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Ward Change Summary Dashboard</h1>
+<div class="sub">Guntur POC · 2017–2022 · 10,611 buildings across 11 wards</div>
+</div>
+<div class="stats-row">
+<div class="stat-card"><div class="label">Total Buildings</div><div class="value a1">10,611</div><div class="detail">11 wards</div></div>
+<div class="stat-card"><div class="label">Stable</div><div class="value a2">8,832</div><div class="detail">83.2% of total</div></div>
+<div class="stat-card"><div class="label">Partially Modified</div><div class="value a3">1,594</div><div class="detail">15.0% of total</div></div>
+<div class="stat-card"><div class="label">Modified / Demolished</div><div class="value a4">185</div><div class="detail">1.7% of total</div></div>
+</div>
+<div class="grid">
+<div class="card"><h3>Buildings by Ward (Stacked by Change Class)</h3><canvas id="wardStacked"></canvas></div>
+<div class="card"><h3>Change % vs Building Count (Bubble)</h3><canvas id="changeBubble"></canvas></div>
+<div class="card"><h3>Mean Difference by Ward</h3><canvas id="meanDiffBar"></canvas></div>
+<div class="card"><h3>Change % by Ward</h3><canvas id="chgPctBar"></canvas></div>
+<div class="card"><h3>Stable vs Modified Distribution (by Ward)</h3><canvas id="polarArea"></canvas></div>
+<div class="card"><h3>Ward Stability Heatmap (Modified/Demolished %)</h3><canvas id="heatBar"></canvas></div>
+<div class="card full"><h3>Ward Details</h3>
+<table>
+<thead><tr><th>Ward</th><th>Total</th><th>Stable</th><th>Partial Mod</th><th>Mod/Dem</th><th>Mean Diff</th><th>Change %</th><th>Stability %</th></tr></thead>
+<tbody id="wardTable"></tbody>
+</table>
+</div>
+</div>
+<script>
+const DATA = {"wards": [{"WARD_ID": "RW05", "total_blds": "679", "stable": "556", "partial_mod": "113", "mod_dem": "10", "mean_diff": "64.0", "change_pct": "18.1"}, {"WARD_ID": "RW07", "total_blds": "546", "stable": "404", "partial_mod": "134", "mod_dem": "8", "mean_diff": "70.9", "change_pct": "26.0"}, {"WARD_ID": "RW08", "total_blds": "770", "stable": "579", "partial_mod": "181", "mod_dem": "10", "mean_diff": "71.8", "change_pct": "24.8"}, {"WARD_ID": "RW09", "total_blds": "2284", "stable": "1845", "partial_mod": "370", "mod_dem": "69", "mean_diff": "67.7", "change_pct": "19.2"}, {"WARD_ID": "RW14", "total_blds": "1133", "stable": "978", "partial_mod": "149", "mod_dem": "6", "mean_diff": "65.0", "change_pct": "13.7"}, {"WARD_ID": "RW15", "total_blds": "1422", "stable": "1243", "partial_mod": "160", "mod_dem": "19", "mean_diff": "63.2", "change_pct": "12.6"}, {"WARD_ID": "RW16", "total_blds": "451", "stable": "366", "partial_mod": "82", "mod_dem": "3", "mean_diff": "68.7", "change_pct": "18.8"}, {"WARD_ID": "RW17", "total_blds": "1776", "stable": "1518", "partial_mod": "228", "mod_dem": "30", "mean_diff": "65.3", "change_pct": "14.5"}, {"WARD_ID": "RW18", "total_blds": "796", "stable": "705", "partial_mod": "76", "mod_dem": "15", "mean_diff": "62.2", "change_pct": "11.4"}, {"WARD_ID": "RW19", "total_blds": "746", "stable": "631", "partial_mod": "100", "mod_dem": "15", "mean_diff": "65.0", "change_pct": "15.4"}, {"WARD_ID": "RW60", "total_blds": "8", "stable": "7", "partial_mod": "1", "mod_dem": "0", "mean_diff": "70.6", "change_pct": "12.5"}], "totalBuildings": 10611, "totalStable": 8832, "totalPartial": 1594, "totalDemolished": 185};
+
+const wards = DATA.wards;
+
+// Sort by total buildings descending
+wards.sort((a,b) => parseInt(b.total_blds) - parseInt(a.total_blds));
+
+// Populate table
+const tbody = document.getElementById('wardTable');
+let tStable=0, tPart=0, tDem=0;
+wards.forEach(w => {
+    tStable += parseInt(w.stable);
+    tPart += parseInt(w.partial_mod);
+    tDem += parseInt(w.mod_dem);
+    const pct = (parseInt(w.stable)/parseInt(w.total_blds)*100).toFixed(1);
+    tbody.innerHTML += `<tr>
+        <td><b>${w.WARD_ID}</b></td>
+        <td>${parseInt(w.total_blds).toLocaleString()}</td>
+        <td><span style="color:#10b981">${parseInt(w.stable).toLocaleString()}</span></td>
+        <td><span style="color:#f59e0b">${parseInt(w.partial_mod).toLocaleString()}</span></td>
+        <td><span style="color:#ef4444">${parseInt(w.mod_dem).toLocaleString()}</span></td>
+        <td>${w.mean_diff}</td>
+        <td>${w.change_pct}%</td>
+        <td>${pct}%</td>
+    </tr>`;
+});
+// Totals row
+tbody.innerHTML += `<tr>
+    <td><b>TOTAL</b></td>
+    <td><b>${tStable+tPart+tDem}</b></td>
+    <td><b style="color:#10b981">${tStable}</b></td>
+    <td><b style="color:#f59e0b">${tPart}</b></td>
+    <td><b style="color:#ef4444">${tDem}</b></td>
+    <td></td><td></td><td><b>${(tStable/(tStable+tPart+tDem)*100).toFixed(1)}%</b></td>
+</tr>`;
+
+const colors = {stable:'#10b981',partial:'#f59e0b',demolished:'#ef4444'};
+
+// Stacked bar
+new Chart(document.getElementById('wardStacked'), {
+    type: 'bar',
+    data: {
+        labels: wards.map(w => w.WARD_ID),
+        datasets: [
+            {label:'Stable',data:wards.map(w=>parseInt(w.stable)),backgroundColor:'#10b981',borderRadius:4},
+            {label:'Partially Modified',data:wards.map(w=>parseInt(w.partial_mod)),backgroundColor:'#f59e0b',borderRadius:4},
+            {label:'Modified/Demolished',data:wards.map(w=>parseInt(w.mod_dem)),backgroundColor:'#ef4444',borderRadius:4}
+        ]
+    },
+    options: {
+        plugins:{legend:{position:'bottom',labels:{color:'#e2e8f0'}}},
+        scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#e2e8f0'}},y:{stacked:true,grid:{color:'#334155'},ticks:{color:'#94a3b8'}}},
+        responsive:true
+    }
+});
+
+// Bubble chart
+new Chart(document.getElementById('changeBubble'), {
+    type: 'bubble',
+    data: {
+        datasets: [{
+            label:'Wards',
+            data: wards.map(w => ({x:parseFloat(w.change_pct),y:parseInt(w.total_blds),r:Math.sqrt(parseInt(w.total_blds))*1.2})),
+            backgroundColor: wards.map(() => 'rgba(96,165,250,0.6)'),
+            borderColor: '#60a5fa',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        plugins:{tooltip:{callbacks:{label:ctx=>wards[ctx.dataIndex].WARD_ID+': '+ctx.raw.x+'% change, '+ctx.raw.y+' blds'}}},
+        scales:{x:{title:{display:true,text:'Change %',color:'#94a3b8'},grid:{color:'#334155'},ticks:{color:'#94a3b8'}},y:{title:{display:true,text:'Total Buildings',color:'#94a3b8'},grid:{color:'#334155'},ticks:{color:'#94a3b8'}}},
+        responsive:true
+    }
+});
+
+// Mean diff bar
+new Chart(document.getElementById('meanDiffBar'), {
+    type: 'bar',
+    data: {
+        labels: wards.map(w => w.WARD_ID),
+        datasets: [{label:'Mean Diff',data:wards.map(w=>parseFloat(w.mean_diff)),backgroundColor:wards.map((_,i)=>['#60a5fa','#a78bfa','#fb923c','#10b981'][i%4]),borderRadius:4}]
+    },
+    options: {
+        plugins:{legend:{display:false}},
+        scales:{x:{grid:{display:false},ticks:{color:'#e2e8f0'}},y:{grid:{color:'#334155'},ticks:{color:'#94a3b8'}}},
+        responsive:true
+    }
+});
+
+// Change % bar
+new Chart(document.getElementById('chgPctBar'), {
+    type: 'bar',
+    data: {
+        labels: wards.map(w => w.WARD_ID),
+        datasets: [{label:'Change %',data:wards.map(w=>parseFloat(w.change_pct)),backgroundColor:wards.map(w=>parseFloat(w.change_pct)>20?'#ef4444':parseFloat(w.change_pct)>15?'#f59e0b':'#10b981'),borderRadius:4}]
+    },
+    options: {
+        plugins:{legend:{display:false}},
+        scales:{x:{grid:{display:false},ticks:{color:'#e2e8f0'}},y:{grid:{color:'#334155'},ticks:{color:'#94a3b8'}}},
+        responsive:true
+    }
+});
+
+// Polar area - Modified vs Stable ratio
+new Chart(document.getElementById('polarArea'), {
+    type: 'polarArea',
+    data: {
+        labels: wards.map(w => w.WARD_ID),
+        datasets: [{data:wards.map(w=>parseInt(w.stable)),backgroundColor:wards.map(()=>'rgba(16,185,129,0.4)'),borderColor:'#10b981',borderWidth:1,label:'Stable'}]
+    },
+    options: {
+        plugins:{legend:{position:'bottom',labels:{color:'#e2e8f0'}}},
+        scales:{r:{grid:{color:'#334155'},ticks:{display:false}}},
+        responsive:true
+    }
+});
+
+// Heatmap-style: % of modified/demolished
+new Chart(document.getElementById('heatBar'), {
+    type: 'bar',
+    data: {
+        labels: wards.map(w => w.WARD_ID),
+        datasets: [{
+            label:'Modified/Demolished %',
+            data: wards.map(w => (parseInt(w.mod_dem)/parseInt(w.total_blds)*100)),
+            backgroundColor: wards.map(w => {
+                const v = parseInt(w.mod_dem)/parseInt(w.total_blds)*100;
+                return v > 3 ? '#ef4444' : v > 1.5 ? '#f59e0b' : '#10b981';
+            }),
+            borderRadius: 4
+        }]
+    },
+    options: {
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toFixed(2)+'%'}}},
+        scales:{x:{grid:{display:false},ticks:{color:'#e2e8f0'}},y:{grid:{color:'#334155'},ticks:{color:'#94a3b8'}}},
+        responsive:true
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "cyber-hub-digital-twin",
+  "version": "1.0.0",
+  "description": "3D Digital Twin of Cyber Hub Gurgaon with Traffic Simulation",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -p 3000 -o",
+    "serve": "http-server -p 3000"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1",
+    "three": "^0.185.1"
+  }
+}

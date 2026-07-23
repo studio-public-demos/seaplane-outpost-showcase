@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StrikeCraft — Premium Cricket Bats</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#131320;--card:#1a1a2e;--gold:#d4a843;--gold-glow:#f0c860;
+  --text:#e8e6e3;--muted:#8884a0;--accent:#e63946;--willow:#c4956a;--english:#e8c97a;
+  --premium:#ff6b35;--radius:16px;--transition:0.3s cubic-bezier(0.4,0,0.2,1);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;min-height:100vh}
+canvas#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.main-content{position:relative;z-index:1}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);background:rgba(10,10,15,0.85);border-bottom:1px solid rgba(255,255,255,0.06);transition:var(--transition)}
+nav .logo{font-size:1.6rem;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,var(--gold),var(--gold-glow));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+nav .nav-links{display:flex;gap:24px;align-items:center;list-style:none}
+nav .nav-links a{color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500;transition:var(--transition);cursor:pointer}
+nav .nav-links a:hover{color:var(--text)}
+nav .cart-btn{position:relative;background:var(--gold);color:#0a0a0f;border:none;padding:10px 20px;border-radius:50px;font-weight:700;cursor:pointer;font-size:0.9rem;transition:var(--transition);display:flex;align-items:center;gap:8px}
+nav .cart-btn:hover{background:var(--gold-glow);transform:translateY(-1px);box-shadow:0 8px 24px rgba(212,168,67,0.3)}
+nav .cart-count{background:#0a0a0f;color:var(--gold);font-size:0.75rem;min-width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.mobile-menu-btn{display:none;background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;padding:8px}
+
+.hero{min-height:100vh;display:flex;align-items:center;position:relative;padding:120px 32px 60px}
+.hero-left{flex:1;z-index:2}
+.hero-right{flex:1;height:550px;position:relative;z-index:1}
+#hero-viewer{width:100%;height:100%}
+.hero h1{font-size:clamp(2.5rem,6vw,4.5rem);font-weight:900;line-height:1.1;margin-bottom:20px}
+.hero h1 .highlight{background:linear-gradient(135deg,var(--gold),var(--gold-glow));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{color:var(--muted);font-size:1.15rem;max-width:480px;margin-bottom:32px;line-height:1.6}
+.hero-btns{display:flex;gap:16px;flex-wrap:wrap}
+.btn{padding:14px 32px;border-radius:50px;font-weight:700;font-size:1rem;cursor:pointer;transition:var(--transition);text-decoration:none;display:inline-flex;align-items:center;gap:8px;border:none}
+.btn-primary{background:var(--gold);color:#0a0a0f}
+.btn-primary:hover{background:var(--gold-glow);transform:translateY(-2px);box-shadow:0 12px 32px rgba(212,168,67,0.35)}
+.btn-outline{background:transparent;color:var(--text);border:2px solid rgba(255,255,255,0.15)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+
+section{padding:80px 32px}
+.section-header{text-align:center;margin-bottom:48px}
+.section-header h2{font-size:2.2rem;font-weight:800;margin-bottom:12px}
+.section-header p{color:var(--muted);font-size:1rem}
+
+.filters{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:40px}
+.filter-btn{padding:10px 22px;border-radius:50px;border:1.5px solid rgba(255,255,255,0.1);background:var(--surface);color:var(--muted);cursor:pointer;font-size:0.9rem;font-weight:600;transition:var(--transition)}
+.filter-btn:hover{border-color:var(--gold);color:var(--gold)}
+.filter-btn.active{background:var(--gold);color:#0a0a0f;border-color:var(--gold)}
+.sort-select{padding:10px 16px;border-radius:50px;border:1.5px solid rgba(255,255,255,0.1);background:var(--surface);color:var(--text);font-size:0.9rem;cursor:pointer;margin-left:auto;outline:none}
+
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;max-width:1200px;margin:0 auto}
+.product-card{background:var(--card);border-radius:var(--radius);overflow:hidden;transition:var(--transition);border:1px solid rgba(255,255,255,0.05);position:relative;cursor:pointer}
+.product-card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,0.15);box-shadow:0 20px 48px rgba(0,0,0,0.4)}
+.product-card .card-viewer{height:260px;background:linear-gradient(135deg,rgba(212,168,67,0.05),rgba(212,168,67,0.02));position:relative}
+.product-card .card-viewer canvas{width:100%!important;height:100%!important}
+.product-card .card-info{padding:20px}
+.product-card .grade{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.product-card .grade::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block}
+.grade-kashmir{color:var(--willow)}.grade-kashmir::before{background:var(--willow)}
+.grade-english{color:var(--english)}.grade-english::before{background:var(--english)}
+.grade-premium{color:var(--premium)}.grade-premium::before{background:var(--premium)}
+.product-card h3{font-size:1.1rem;font-weight:700;margin-bottom:6px}
+.product-card .specs{font-size:0.85rem;color:var(--muted);margin-bottom:12px;display:flex;gap:16px}
+.product-card .price{font-size:1.3rem;font-weight:800;color:var(--gold)}
+.product-card .add-btn{position:absolute;bottom:20px;right:20px;width:44px;height:44px;border-radius:50%;background:var(--gold);color:#0a0a0f;border:none;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--transition);font-weight:700}
+.product-card .add-btn:hover{background:var(--gold-glow);transform:scale(1.1);box-shadow:0 8px 24px rgba(212,168,67,0.4)}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);grid-column:1/-1}
+.empty-state .icon{font-size:3rem;margin-bottom:16px}
+
+.cart-overlay{position:fixed;top:0;right:0;width:420px;max-width:100vw;height:100%;z-index:200;background:var(--surface);transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;box-shadow:-8px 0 40px rgba(0,0,0,0.6)}
+.cart-overlay.open{transform:translateX(0)}
+.cart-overlay-backdrop{position:fixed;inset:0;z-index:199;background:rgba(0,0,0,0.6);opacity:0;pointer-events:none;transition:opacity 0.3s}
+.cart-overlay-backdrop.open{opacity:1;pointer-events:auto}
+.cart-header{padding:24px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center}
+.cart-header h2{font-size:1.3rem}
+.cart-close{background:none;border:none;color:var(--muted);font-size:1.5rem;cursor:pointer;padding:4px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:var(--transition)}
+.cart-close:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.cart-items{flex:1;overflow-y:auto;padding:16px}
+.cart-item{display:flex;gap:14px;padding:14px;background:var(--card);border-radius:12px;margin-bottom:12px;align-items:center}
+.cart-item-img{width:60px;height:60px;border-radius:10px;background:linear-gradient(135deg,rgba(212,168,67,0.15),rgba(212,168,67,0.05));display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cart-item-info{flex:1}
+.cart-item-info h4{font-size:0.95rem;margin-bottom:2px}
+.cart-item-info .meta{font-size:0.8rem;color:var(--muted)}
+.cart-item-qty{display:flex;align-items:center;gap:8px}
+.cart-item-qty button{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:var(--transition)}
+.cart-item-qty button:hover{border-color:var(--gold);color:var(--gold)}
+.cart-item-qty span{min-width:24px;text-align:center;font-weight:700}
+.cart-item-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;padding:4px;transition:var(--transition);width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.cart-item-remove:hover{color:var(--accent)}
+.cart-empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.cart-footer{padding:20px 24px;border-top:1px solid rgba(255,255,255,0.06)}
+.cart-total{display:flex;justify-content:space-between;font-size:1.2rem;font-weight:800;margin-bottom:14px}
+.checkout-btn{width:100%;padding:16px;border-radius:50px;background:var(--gold);color:#0a0a0f;border:none;font-weight:800;font-size:1rem;cursor:pointer;transition:var(--transition)}
+.checkout-btn:hover{background:var(--gold-glow);box-shadow:0 8px 24px rgba(212,168,67,0.3)}
+.checkout-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{background:var(--surface);border-radius:var(--radius);padding:32px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative}
+.modal h2{font-size:1.4rem;margin-bottom:20px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:0.85rem;font-weight:600;margin-bottom:6px;color:var(--muted)}
+.form-group input,.form-group textarea{width:100%;padding:12px 16px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.1);background:var(--bg);color:var(--text);font-size:0.95rem;font-family:inherit;transition:var(--transition);outline:none}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--gold)}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:var(--transition)}
+.modal-close:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.success-msg{text-align:center;padding:40px 20px}
+.success-msg .check{font-size:3rem;margin-bottom:16px}
+.success-msg h3{font-size:1.3rem;margin-bottom:8px}
+
+.detail-overlay{position:fixed;inset:0;z-index:250;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.detail-overlay.open{opacity:1;pointer-events:auto}
+.detail-panel{background:var(--surface);border-radius:var(--radius);width:700px;max-width:95vw;max-height:90vh;display:flex;overflow:hidden;position:relative}
+.detail-panel .detail-viewer{flex:1;min-height:400px;background:linear-gradient(135deg,rgba(212,168,67,0.08),rgba(212,168,67,0.02))}
+.detail-panel .detail-info{flex:1;padding:32px;display:flex;flex-direction:column;justify-content:center}
+.detail-panel .detail-info h2{font-size:1.6rem;margin-bottom:8px}
+.detail-panel .detail-info .price{font-size:2rem;font-weight:800;color:var(--gold);margin-bottom:14px}
+.detail-panel .detail-info .desc{color:var(--muted);line-height:1.6;margin-bottom:20px}
+.detail-panel .spec-list{list-style:none;margin-bottom:24px}
+.detail-panel .spec-list li{padding:6px 0;font-size:0.9rem;color:var(--muted);display:flex;justify-content:space-between}
+.detail-panel .spec-list li span{color:var(--text);font-weight:600}
+.detail-panel .detail-close{position:absolute;top:16px;right:16px;z-index:2;background:rgba(0,0,0,0.5);color:var(--text);border:none;width:40px;height:40px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+.grip-colors{display:flex;gap:10px;margin-bottom:16px}
+.grip-color{width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:var(--transition)}
+.grip-color.selected{border-color:var(--gold);box-shadow:0 0 12px rgba(212,168,67,0.4)}
+.grip-color.white{background:#f0f0e8}.grip-color.black{background:#1a1a1a}.grip-color.red{background:#c0392b}.grip-color.blue{background:#2471a3}.grip-color.green{background:#1e8449}
+
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);z-index:500;background:var(--gold);color:#0a0a0f;padding:14px 28px;border-radius:50px;font-weight:700;font-size:0.9rem;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+.loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin:40px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+footer{text-align:center;padding:40px 32px;border-top:1px solid rgba(255,255,255,0.05)}
+footer p{color:var(--muted);font-size:0.85rem}
+
+@media(max-width:768px){
+  .hero{flex-direction:column;padding:100px 20px 40px;text-align:center}
+  .hero-right{height:350px;margin-top:20px}
+  .hero p{margin-left:auto;margin-right:auto}
+  .hero-btns{justify-content:center}
+  nav{padding:12px 20px}
+  .nav-links{display:none!important}
+  .mobile-menu-btn{display:block}
+  .detail-panel{flex-direction:column}
+  .detail-panel .detail-viewer{min-height:250px}
+  .products-grid{grid-template-columns:1fr}
+  .cart-overlay{width:100vw}
+  section{padding:60px 20px}
+  .section-header h2{font-size:1.6rem}
+}
+
+@media(max-width:375px){
+  .hero h1{font-size:2rem}
+  .hero-right{height:250px}
+  .btn{padding:12px 24px;font-size:0.9rem}
+  .product-card .card-viewer{height:200px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<div class="main-content">
+<nav>
+  <div class="logo">StrikeCraft</div>
+  <ul class="nav-links">
+    <li><a onclick="scrollToSection('products')">Bats</a></li>
+    <li><a onclick="scrollToSection('products')">Collections</a></li>
+    <li><a onclick="scrollToSection('products')">About</a></li>
+  </ul>
+  <button class="cart-btn" onclick="toggleCart()" aria-label="Shopping cart">
+    Cart <span class="cart-count" id="cartCount">0</span>
+  </button>
+  <button class="mobile-menu-btn" onclick="scrollToSection('products')" aria-label="Menu">☰</button>
+</nav>
+
+<section class="hero" id="home">
+  <div class="hero-left">
+    <h1>Crafted for<br><span class="highlight">Champions</span></h1>
+    <p>Premium hand-selected cricket bats forged from the finest English and Kashmir willow. Experience every grain in stunning 3D.</p>
+    <div class="hero-btns">
+      <a class="btn btn-primary" onclick="scrollToSection('products')">Explore Collection</a>
+      <a class="btn btn-outline" onclick="scrollToSection('products')">Learn More</a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div id="hero-viewer"></div>
+  </div>
+</section>
+
+<section id="products">
+  <div class="section-header">
+    <h2>The Collection</h2>
+    <p>Choose from our curated selection of match-ready bats</p>
+  </div>
+  <div class="filters" id="filterBar">
+    <button class="filter-btn active" data-filter="all">All Bats</button>
+    <button class="filter-btn" data-filter="english">English Willow</button>
+    <button class="filter-btn" data-filter="kashmir">Kashmir Willow</button>
+    <button class="filter-btn" data-filter="premium">Premium Grade</button>
+    <select class="sort-select" id="sortSelect">
+      <option value="default">Sort: Featured</option>
+      <option value="price-asc">Price: Low → High</option>
+      <option value="price-desc">Price: High → Low</option>
+    </select>
+  </div>
+  <div class="products-grid" id="productsGrid"></div>
+</section>
+
+<footer>
+  <p>Built with NebulaCloud Studio</p>
+</footer>
+</div>
+
+<div class="cart-overlay-backdrop" id="cartBackdrop" onclick="toggleCart()"></div>
+<div class="cart-overlay" id="cartOverlay">
+  <div class="cart-header">
+    <h2>Your Cart</h2>
+    <button class="cart-close" onclick="toggleCart()" aria-label="Close cart">✕</button>
+  </div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="cart-footer">
+    <div class="cart-total">
+      <span>Total</span>
+      <span id="cartTotal">$0</span>
+    </div>
+    <button class="checkout-btn" id="checkoutBtn" onclick="openCheckout()" disabled>Proceed to Checkout</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="checkoutModal">
+  <div class="modal" id="checkoutForm">
+    <button class="modal-close" onclick="closeCheckout()">✕</button>
+    <h2>Checkout</h2>
+    <div id="checkoutContent"></div>
+  </div>
+</div>
+
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-panel" id="detailPanel"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const products = [
+  {id:1,name:"Shadow Pro",grade:"english",gradeLabel:"English Willow",weight:"2lb 8oz",price:349,sweetspot:"Mid",grains:8,desc:"Hand-selected Grade 1 English willow with tight, straight grains. Engineered for explosive power with a mid sweet spot and pronounced bow."},
+  {id:2,name:"Thunderstrike",grade:"english",gradeLabel:"English Willow",weight:"2lb 10oz",price:299,sweetspot:"Low",grains:7,desc:"Weighty English willow blade built for front-foot dominance. Low sweet spot delivers punishing drives through the covers."},
+  {id:3,name:"Himalayan Edge",grade:"kashmir",gradeLabel:"Kashmir Willow",weight:"2lb 9oz",price:149,sweetspot:"Mid",grains:6,desc:"Premium Kashmir willow offering exceptional value. Pressed to perfection with a balanced pickup and mid sweet spot."},
+  {id:4,name:"Royal Crest",grade:"kashmir",gradeLabel:"Kashmir Willow",weight:"2lb 7oz",price:119,sweetspot:"Mid-Low",grains:5,desc:"Lightweight Kashmir willow ideal for stroke players. Quick through the air with a responsive middle."},
+  {id:5,name:"Titan X",grade:"premium",gradeLabel:"Premium English",weight:"2lb 9oz",price:549,sweetspot:"Mid-High",grains:12,desc:"Elite Grade 1+ English willow with 12+ straight grains. Used by international pros. Extra power with supreme pickup."},
+  {id:6,name:"Viper Air",grade:"kashmir",gradeLabel:"Kashmir Willow",weight:"2lb 6oz",price:99,sweetspot:"Mid",grains:5,desc:"Ultra-light Kashmir willow for budding cricketers. Easy pickup, durable construction, perfect for club cricket."},
+  {id:7,name:"Apex Elite",grade:"premium",gradeLabel:"Premium English",weight:"2lb 11oz",price:499,sweetspot:"Low",grains:10,desc:"Heavy premium English willow for power hitters. Massive edges with a low blade profile to dominate fast bowling."},
+  {id:8,name:"Classic 500",grade:"english",gradeLabel:"English Willow",weight:"2lb 8oz",price:249,sweetspot:"Mid",grains:8,desc:"Traditional English willow profile with a classic scallop. Timeless shape beloved by purists."}
+];
+
+let activeFilter = 'all';
+let sortOrder = 'default';
+let cart = JSON.parse(localStorage.getItem('strikecraft_cart') || '[]');
+
+function saveCart(){localStorage.setItem('strikecraft_cart',JSON.stringify(cart));updateCartUI()}
+function updateCartUI(){
+  const count = cart.reduce((s,i)=>s+i.qty,0);
+  document.getElementById('cartCount').textContent = count;
+  document.getElementById('cartTotal').textContent = '$'+cart.reduce((s,i)=>s+i.price*i.qty,0);
+  document.getElementById('checkoutBtn').disabled = cart.length===0;
+  renderCartItems();
+}
+function addToCart(productId){
+  const existing = cart.find(i=>i.id===productId);
+  if(existing){existing.qty++}
+  else{const p=products.find(p=>p.id===productId);cart.push({id:p.id,name:p.name,price:p.price,qty:1,grade:p.grade})}
+  saveCart();
+  showToast('Added to cart!');
+}
+function removeFromCart(productId){cart=cart.filter(i=>i.id!==productId);saveCart()}
+function updateQty(productId,qty){
+  if(qty<1){removeFromCart(productId);return}
+  const item=cart.find(i=>i.id===productId);if(item)item.qty=qty;saveCart()
+}
+function toggleCart(){document.getElementById('cartOverlay').classList.toggle('open');document.getElementById('cartBackdrop').classList.toggle('open')}
+
+function renderCartItems(){
+  const container = document.getElementById('cartItems');
+  if(cart.length===0){container.innerHTML='<div class="cart-empty"><p style="font-size:2rem;margin-bottom:12px">🧺</p><p>Your cart is empty</p></div>';return}
+  container.innerHTML = cart.map(item=>`
+    <div class="cart-item">
+      <div class="cart-item-img">🏏</div>
+      <div class="cart-item-info">
+        <h4>${item.name}</h4>
+        <div class="meta">$${item.price}</div>
+      </div>
+      <div class="cart-item-qty">
+        <button onclick="window._updateQty(${item.id},${item.qty-1})">−</button>
+        <span>${item.qty}</span>
+        <button onclick="window._updateQty(${item.id},${item.qty+1})">+</button>
+      </div>
+      <button class="cart-item-remove" onclick="window._removeFromCart(${item.id})">✕</button>
+    </div>
+  `).join('');
+}
+window._removeFromCart = removeFromCart;
+window._updateQty = updateQty;
+
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+function openCheckout(){
+  document.getElementById('checkoutModal').classList.add('open');
+  document.getElementById('checkoutContent').innerHTML = `
+    <div class="form-group"><label>Full Name</label><input type="text" id="chkName" placeholder="John Doe"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="chkEmail" placeholder="john@example.com"></div>
+    <div class="form-group"><label>Shipping Address</label><textarea id="chkAddr" rows="3" placeholder="123 Cricket Lane..."></textarea></div>
+    <button class="checkout-btn" onclick="window._submitCheckout()">Place Order — $${cart.reduce((s,i)=>s+i.price*i.qty,0)}</button>
+  `;
+}
+function closeCheckout(){document.getElementById('checkoutModal').classList.remove('open')}
+window._submitCheckout = function(){
+  const name=document.getElementById('chkName').value.trim();
+  const email=document.getElementById('chkEmail').value.trim();
+  const addr=document.getElementById('chkAddr').value.trim();
+  if(!name||!email||!addr){showToast('Please fill all fields');return}
+  document.getElementById('checkoutContent').innerHTML=`
+    <div class="success-msg">
+      <div class="check">✅</div>
+      <h3>Order Confirmed!</h3>
+      <p style="color:var(--muted)">Thanks ${name}. Your bats are on the way!</p>
+    </div>
+  `;
+  cart=[];saveCart();
+  setTimeout(()=>{closeCheckout();renderProducts()},2500);
+};
+
+document.getElementById('checkoutModal').addEventListener('click',function(e){if(e.target===this)closeCheckout()});
+document.getElementById('detailOverlay').addEventListener('click',function(e){if(e.target===this)closeDetail()});
+
+function openDetail(productId){
+  const p=products.find(p=>p.id===productId);if(!p)return;
+  document.getElementById('detailPanel').innerHTML=`
+    <div class="detail-viewer" id="detailViewer"></div>
+    <button class="detail-close" onclick="window._closeDetail()">✕</button>
+    <div class="detail-info">
+      <span class="grade grade-${p.grade}">${p.gradeLabel}</span>
+      <h2>${p.name}</h2>
+      <div class="price">$${p.price}</div>
+      <p class="desc">${p.desc}</p>
+      <ul class="spec-list">
+        <li>Weight <span>${p.weight}</span></li>
+        <li>Sweet Spot <span>${p.sweetspot}</span></li>
+        <li>Grains <span>${p.grains}</span></li>
+      </ul>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:10px">Grip Color</div>
+      <div class="grip-colors">
+        <div class="grip-color white selected" onclick="selectGrip(this,'#f0f0e8')"></div>
+        <div class="grip-color black" onclick="selectGrip(this,'#1a1a1a')"></div>
+        <div class="grip-color red" onclick="selectGrip(this,'#c0392b')"></div>
+        <div class="grip-color blue" onclick="selectGrip(this,'#2471a3')"></div>
+        <div class="grip-color green" onclick="selectGrip(this,'#1e8449')"></div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="window._addAndClose(${p.id})">Add to Cart — $${p.price}</button>
+    </div>
+  `;
+  document.getElementById('detailOverlay').classList.add('open');
+  setTimeout(()=>startDetailViewer(p.grade),100);
+}
+window._closeDetail = function(){
+  document.getElementById('detailOverlay').classList.remove('open');
+  if(window._detailRenderer){window._detailRenderer.dispose();window._detailRenderer=null}
+};
+window._addAndClose = function(id){addToCart(id);window._closeDetail()};
+window._selectGrip = selectGrip;
+
+function selectGrip(el,color){
+  document.querySelectorAll('.grip-color').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  if(window._detailGripColor!==undefined)window._detailGripColor=color;
+}
+
+function closeDetail(){window._closeDetail()}
+window._closeDetail=window._closeDetail;
+
+let detailScene,detailCamera,detailRenderer,detailBat;
+function startDetailViewer(grade){
+  const container=document.getElementById('detailViewer');if(!container)return;
+  const w=container.clientWidth,h=container.clientHeight;
+  detailScene=new THREE.Scene();
+  detailScene.background=new THREE.Color(0x0a0a0f);
+  detailScene.fog=new THREE.Fog(0x0a0a0f,2,12);
+  detailCamera=new THREE.PerspectiveCamera(40,w/h,0.1,50);
+  detailCamera.position.set(2.5,1.2,3.5);
+  detailCamera.lookAt(0,-0.3,0);
+  detailRenderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  detailRenderer.setSize(w,h);
+  detailRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  detailRenderer.shadowMap.enabled=true;
+  detailRenderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  detailRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+  detailRenderer.toneMappingExposure=1.4;
+  container.appendChild(detailRenderer.domElement);
+  const controls=new OrbitControls(detailCamera,detailRenderer.domElement);
+  controls.target.set(0,-0.25,0);
+  controls.enableDamping=true;controls.dampingFactor=0.08;
+  controls.minPolarAngle=0.3;controls.maxPolarAngle=2.2;
+  controls.minDistance=2;controls.maxDistance=6;
+  controls.autoRotate=true;controls.autoRotateSpeed=1.2;
+  controls.update();
+  const amb=new THREE.AmbientLight(0x443322,1.4);detailScene.add(amb);
+  const key=new THREE.DirectionalLight(0xffeedd,4);key.position.set(4,6,3);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.near=0.5;key.shadow.camera.far=20;key.shadow.camera.left=-5;key.shadow.camera.right=5;key.shadow.camera.top=5;key.shadow.camera.bottom=-5;key.shadow.bias=-0.0005;detailScene.add(key);
+  const rim=new THREE.DirectionalLight(0x8899cc,2);rim.position.set(-2,1,-2);detailScene.add(rim);
+  const fill=new THREE.DirectionalLight(0xeeddcc,1.5);fill.position.set(0,0.5,3);detailScene.add(fill);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.95}));
+  ground.rotation.x=-Math.PI/2;ground.position.y=-1.8;ground.receiveShadow=true;detailScene.add(ground);
+  detailBat=createBat(grade);detailScene.add(detailBat);
+  window._detailGripColor = null;
+  window._detailScene = detailScene;
+  window._detailRenderer = detailRenderer;
+  window._detailBat = detailBat;
+  window._detailControls = controls;
+  function animate(){
+    if(!window._detailRenderer)return;
+    requestAnimationFrame(animate);
+    controls.update();
+    if(window._detailGripColor && detailBat){
+      const gripPart = detailBat.children.find(c=>c.name==='grip');
+      if(gripPart&&gripPart.material.color.getHexString()!==window._detailGripColor.replace('#','')){
+        gripPart.material.color.set(window._detailGripColor);
+      }
+    }
+    detailRenderer.render(detailScene,detailCamera);
+  }
+  animate();
+}
+
+function getProducts(){
+  let filtered = activeFilter==='all'?[...products]:products.filter(p=>p.grade===activeFilter);
+  if(sortOrder==='price-asc')filtered.sort((a,b)=>a.price-b.price);
+  else if(sortOrder==='price-desc')filtered.sort((a,b)=>b.price-a.price);
+  return filtered;
+}
+
+function renderProducts(){
+  const grid=document.getElementById('productsGrid');
+  const list=getProducts();
+  if(list.length===0){
+    grid.innerHTML='<div class="empty-state"><div class="icon">🔍</div><p>No bats found in this category.</p></div>';return
+  }
+  grid.innerHTML=list.map(p=>`
+    <div class="product-card" onclick="window._openDetail(${p.id})">
+      <div class="card-viewer" id="cardViewer${p.id}"></div>
+      <div class="card-info">
+        <span class="grade grade-${p.grade}">${p.gradeLabel}</span>
+        <h3>${p.name}</h3>
+        <div class="specs"><span>${p.weight}</span><span>${p.sweetspot} Sweet Spot</span></div>
+        <div class="price">$${p.price}</div>
+      </div>
+      <button class="add-btn" onclick="event.stopPropagation();window._addToCart(${p.id})">+</button>
+    </div>
+  `).join('');
+  requestAnimationFrame(()=>{list.forEach(p=>startCardViewer(p.id,p.grade))});
+}
+window._openDetail=openDetail;
+window._addToCart=addToCart;
+
+function startCardViewer(productId,grade){
+  const c=document.getElementById('cardViewer'+productId);if(!c)return;
+  const w=c.clientWidth,h=c.clientHeight;
+  if(w===0||h===0){setTimeout(()=>startCardViewer(productId,grade),200);return}
+  c.innerHTML='';
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0x0a0a0f);
+  const cam=new THREE.PerspectiveCamera(35,w/h,0.1,30);
+  cam.position.set(1.8,0.6,2.8);cam.lookAt(0,-0.2,0);
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setSize(w,h);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;
+  c.appendChild(renderer.domElement);
+  const controls=new OrbitControls(cam,renderer.domElement);
+  controls.target.set(0,-0.2,0);controls.enableDamping=true;controls.dampingFactor=0.1;
+  controls.minPolarAngle=0.4;controls.maxPolarAngle=2.1;controls.minDistance=1.6;controls.maxDistance=4.5;
+  controls.autoRotate=true;controls.autoRotateSpeed=0.8;controls.enableZoom=false;controls.enablePan=false;
+  controls.update();
+  scene.add(new THREE.AmbientLight(0x554433,1.2));
+  const dl=new THREE.DirectionalLight(0xfff5e8,3.5);dl.position.set(3,5,2);dl.castShadow=true;
+  dl.shadow.mapSize.set(512,512);dl.shadow.camera.near=0.2;dl.shadow.camera.far=15;scene.add(dl);
+  scene.add(new THREE.DirectionalLight(0x8899bb,1.8).position.set(-2,0.5,-1));
+  const bat=createBat(grade);scene.add(bat);
+  function anim(){
+    if(!c.isConnected||!renderer.domElement.isConnected){renderer.dispose();return}
+    requestAnimationFrame(anim);controls.update();renderer.render(scene,cam);
+  }
+  anim();
+}
+
+function createBat(grade='english'){
+  const group=new THREE.Group();
+  const woodColor=grade==='kashmir'?0xc4956a:grade==='premium'?0xe6c97a:0xd4a860;
+  const woodDark=grade==='kashmir'?0x9e744a:grade==='premium'?0xcda860:0xb89050;
+
+  const bladeShape=new THREE.Shape();
+  const bw=0.22,bh=1.6;
+  bladeShape.moveTo(0,-bh/2);
+  bladeShape.bezierCurveTo(bw*0.7,-bh/2.5,bw,-bh/4,bw,-0.1);
+  bladeShape.lineTo(bw,0.15);
+  bladeShape.bezierCurveTo(bw,0.3,bw*0.8,0.4,0,0.55);
+  bladeShape.bezierCurveTo(-bw*0.8,0.4,-bw,0.3,-bw,0.15);
+  bladeShape.lineTo(-bw,-0.1);
+  bladeShape.bezierCurveTo(-bw,-bh/4,-bw*0.7,-bh/2.5,0,-bh/2);
+  const extrudeSettings={steps:1,depth:0.08,bevelEnabled:true,bevelThickness:0.015,bevelSize:0.015,bevelSegments:3};
+  const bladeGeo=new THREE.ExtrudeGeometry(bladeShape,extrudeSettings);
+  bladeGeo.translate(0,0.65,-0.04);
+  const bladeMat=new THREE.MeshStandardMaterial({color:woodColor,roughness:0.55,metalness:0.02});
+  const blade=new THREE.Mesh(bladeGeo,bladeMat);
+  blade.castShadow=true;blade.receiveShadow=true;
+  group.add(blade);
+
+  const edgeGeo=new THREE.BoxGeometry(0.06,1.25,0.09);
+  edgeGeo.translate(0,0.68,0);
+  const edgeMat=new THREE.MeshStandardMaterial({color:woodDark,roughness:0.6,metalness:0.02});
+  const edge=new THREE.Mesh(edgeGeo,edgeMat);edge.castShadow=true;group.add(edge);
+
+  const toeGeo=new THREE.BoxGeometry(0.38,0.06,0.09);
+  toeGeo.translate(0,0.04,0);
+  const toe=new THREE.Mesh(toeGeo,new THREE.MeshStandardMaterial({color:0x333333,roughness:0.4,metalness:0.3}));
+  toe.castShadow=true;group.add(toe);
+
+  const handleGroup=new THREE.Group();
+  const hSegs=12;const hLen=0.7;const hRad=0.04;
+  for(let i=0;i<hSegs;i++){
+    const t=i/hSegs;
+    const rad=hRad*(1-t*0.3);
+    const segGeo=new THREE.CylinderGeometry(rad,rad*0.98,hLen/hSegs,12);
+    segGeo.translate(0,hLen*(0.5-t),0);
+    const segMat=new THREE.MeshStandardMaterial({color:0x3d2b1a,roughness:0.7,metalness:0.05});
+    const seg=new THREE.Mesh(segGeo,segMat);
+    seg.castShadow=true;handleGroup.add(seg);
+  }
+
+  const gripBase=new THREE.CylinderGeometry(hRad,hRad*0.75,hLen*0.3,16,1,false,0,Math.PI*1.5);
+  gripBase.translate(0,hLen*0.4,0);
+  const gripMat=new THREE.MeshStandardMaterial({color:0xf0f0e8,roughness:0.85,metalness:0});
+  const grip=new THREE.Mesh(gripBase,gripMat);
+  grip.name='grip';grip.castShadow=true;handleGroup.add(grip);
+
+  const gripRings=[];
+  for(let i=0;i<5;i++){
+    const ringGeo=new THREE.TorusGeometry(hRad*0.9,0.004,8,16);
+    ringGeo.translate(0,hLen*(0.45+i*0.05),0);
+    const ring=new THREE.Mesh(ringGeo,new THREE.MeshStandardMaterial({color:0x222222,roughness:0.3,metalness:0.5}));
+    handleGroup.add(ring);
+  }
+
+  handleGroup.position.set(0,1.35,0);
+  group.add(handleGroup);
+
+  for(let i=0;i<3;i++){
+    const decalGeo=new THREE.PlaneGeometry(0.14,0.08);
+    const decalMat=new THREE.MeshStandardMaterial({color:i===0?0xe63946:0xd4a843,roughness:0.3,metalness:0.4,side:THREE.DoubleSide});
+    const decal=new THREE.Mesh(decalGeo,decalMat);
+    decal.position.set(0,0.75+i*0.2,0.045);
+    decal.rotation.z=i===1?Math.PI/4:0;
+    group.add(decal);
+  }
+
+  group.scale.set(1.15,1.15,1.15);
+  group.rotation.y=0.3;
+  return group;
+}
+
+let heroScene,heroCamera,heroRenderer,heroBat;
+function startHeroViewer(){
+  const container=document.getElementById('hero-viewer');if(!container)return;
+  const w=container.clientWidth,h=container.clientHeight;
+  heroScene=new THREE.Scene();
+  heroScene.background=new THREE.Color(0x0a0a0f);
+  heroScene.fog=new THREE.Fog(0x0a0a0f,2,14);
+  heroCamera=new THREE.PerspectiveCamera(38,w/h,0.1,40);
+  heroCamera.position.set(3.5,1.5,4.5);heroCamera.lookAt(0,-0.3,0);
+  heroRenderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  heroRenderer.setSize(w,h);heroRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  heroRenderer.shadowMap.enabled=true;heroRenderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  heroRenderer.toneMapping=THREE.ACESFilmicToneMapping;heroRenderer.toneMappingExposure=1.5;
+  container.appendChild(heroRenderer.domElement);
+  const controls=new OrbitControls(heroCamera,heroRenderer.domElement);
+  controls.target.set(0,-0.25,0);controls.enableDamping=true;controls.dampingFactor=0.06;
+  controls.minPolarAngle=0.2;controls.maxPolarAngle=2.3;
+  controls.minDistance=2.5;controls.maxDistance=7;
+  controls.autoRotate=true;controls.autoRotateSpeed=1.0;
+  controls.update();
+  heroScene.add(new THREE.AmbientLight(0x665544,1.6));
+  const key=new THREE.DirectionalLight(0xfff8ee,5);key.position.set(5,7,4);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.camera.near=0.3;key.shadow.camera.far=25;key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;key.shadow.bias=-0.0004;heroScene.add(key);
+  const rim=new THREE.DirectionalLight(0xaaccff,2.5);rim.position.set(-3,2,-3);heroScene.add(rim);
+  const fill=new THREE.DirectionalLight(0xffeedd,2);fill.position.set(0,0.5,5);heroScene.add(fill);
+  const spot=new THREE.SpotLight(0xd4a843,8,15,Math.PI/8,0.3,1);spot.position.set(0,3,0);heroScene.add(spot);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0x121212,roughness:0.9}));
+  ground.rotation.x=-Math.PI/2;ground.position.y=-2.2;ground.receiveShadow=true;heroScene.add(ground);
+  heroBat=createBat('premium');heroScene.add(heroBat);
+  function anim(){
+    requestAnimationFrame(anim);
+    const t=performance.now()*0.0003;
+    spot.intensity=6+Math.sin(t)*2;
+    controls.update();
+    heroRenderer.render(heroScene,heroCamera);
+  }
+  anim();
+  window.addEventListener('resize',()=>{
+    if(!heroRenderer)return;
+    const rw=container.clientWidth,rh=container.clientHeight;
+    heroCamera.aspect=rw/rh;heroCamera.updateProjectionMatrix();
+    heroRenderer.setSize(rw,rh);
+  });
+}
+
+function startParticles(){
+  const canvas=document.getElementById('particles');
+  const ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const particles=[];
+  for(let i=0;i<80;i++){
+    particles.push({
+      x:Math.random()*canvas.width,y:Math.random()*canvas.height,
+      vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3-Math.random()*0.3,
+      r:Math.random()*1.8+0.4,alpha:Math.random()*0.4+0.1
+    });
+  }
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(const p of particles){
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(212,168,67,${p.alpha})`;ctx.fill();
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=canvas.width;if(p.x>canvas.width)p.x=0;
+      if(p.y<0){p.y=canvas.height;p.x=Math.random()*canvas.width}
+      if(p.y>canvas.height){p.y=0;p.x=Math.random()*canvas.width}
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+  window.addEventListener('resize',()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight});
+}
+
+document.getElementById('filterBar').addEventListener('click',function(e){
+  const btn=e.target.closest('.filter-btn');if(!btn)return;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');activeFilter=btn.dataset.filter;renderProducts();
+});
+document.getElementById('sortSelect').addEventListener('change',function(e){
+  sortOrder=e.target.value;renderProducts();
+});
+
+function scrollToSection(id){document.getElementById(id).scrollIntoView({behavior:'smooth'})}
+
+startHeroViewer();
+startParticles();
+renderProducts();
+updateCartUI();
+</script>
+
+</body>
+</html>

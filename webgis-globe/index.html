@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGIS Globe - Tourism Explorer</title>
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Search Bar -->
+        <div id="search-container">
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="search-input" placeholder="Search places, cities, landmarks..." autocomplete="off">
+                <button id="search-btn" title="Search">Search</button>
+                <button id="clear-search" title="Clear" style="display:none;">&times;</button>
+            </div>
+            <div id="search-results" class="search-results"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <h2>🌍 Tourism Explorer</h2>
+                <button id="toggle-sidebar" title="Toggle Sidebar">☰</button>
+            </div>
+
+            <!-- Layer Switcher -->
+            <div class="section">
+                <h3>🗺️ Map Layers</h3>
+                <div id="layer-switcher">
+                    <label class="layer-item active" data-layer="osm">
+                        <input type="radio" name="basemap" value="osm" checked>
+                        <span class="layer-preview" style="background:#4a9f4a;"></span>
+                        <span>Street Map</span>
+                    </label>
+                    <label class="layer-item" data-layer="satellite">
+                        <input type="radio" name="basemap" value="satellite">
+                        <span class="layer-preview" style="background:#1a3a5c;"></span>
+                        <span>Satellite</span>
+                    </label>
+                    <label class="layer-item" data-layer="terrain">
+                        <input type="radio" name="basemap" value="terrain">
+                        <span class="layer-preview" style="background:#8B7355;"></span>
+                        <span>Terrain</span>
+                    </label>
+                    <label class="layer-item" data-layer="dark">
+                        <input type="radio" name="basemap" value="dark">
+                        <span class="layer-preview" style="background:#1a1a2e;"></span>
+                        <span>Dark</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- POI Categories -->
+            <div class="section">
+                <h3>📍 Points of Interest</h3>
+                <p class="section-desc">Select categories to explore</p>
+                <div id="poi-categories">
+                    <label class="category-item">
+                        <input type="checkbox" value="tourism=attraction" checked>
+                        <span class="cat-icon">🏛️</span>
+                        <span>Attractions</span>
+                        <span class="cat-count" id="count-attraction">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="tourism=museum" checked>
+                        <span class="cat-icon">🏛️</span>
+                        <span>Museums</span>
+                        <span class="cat-count" id="count-museum">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="tourism=hotel">
+                        <span class="cat-icon">🏨</span>
+                        <span>Hotels</span>
+                        <span class="cat-count" id="count-hotel">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="amenity=restaurant" checked>
+                        <span class="cat-icon">🍽️</span>
+                        <span>Restaurants</span>
+                        <span class="cat-count" id="count-restaurant">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="amenity=cafe">
+                        <span class="cat-icon">☕</span>
+                        <span>Cafes</span>
+                        <span class="cat-count" id="count-cafe">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="tourism=viewpoint" checked>
+                        <span class="cat-icon">🌄</span>
+                        <span>Viewpoints</span>
+                        <span class="cat-count" id="count-viewpoint">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="leisure=park" checked>
+                        <span class="cat-icon">🌳</span>
+                        <span>Parks</span>
+                        <span class="cat-count" id="count-park">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="amenity=bar">
+                        <span class="cat-icon">🍸</span>
+                        <span>Bars & Pubs</span>
+                        <span class="cat-count" id="count-bar">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="tourism=hostel">
+                        <span class="cat-icon">🛏️</span>
+                        <span>Hostels</span>
+                        <span class="cat-count" id="count-hostel">0</span>
+                    </label>
+                    <label class="category-item">
+                        <input type="checkbox" value="shop=supermarket">
+                        <span class="cat-icon">🛒</span>
+                        <span>Shopping</span>
+                        <span class="cat-count" id="count-shop">0</span>
+                    </label>
+                </div>
+                <button id="load-pois" class="btn-primary">Load POIs in View</button>
+                <button id="clear-pois" class="btn-secondary">Clear All POIs</button>
+            </div>
+
+            <!-- Search Radius -->
+            <div class="section">
+                <h3>🔧 Search Settings</h3>
+                <label>Search Radius: <span id="radius-value">5</span> km</label>
+                <input type="range" id="search-radius" min="1" max="50" value="5" step="1">
+            </div>
+
+            <!-- POI List -->
+            <div class="section">
+                <h3>📋 Nearby POIs (<span id="poi-count">0</span>)</h3>
+                <div id="poi-list" class="poi-list"></div>
+            </div>
+
+            <!-- Legend -->
+            <div class="section">
+                <h3>🎨 Legend</h3>
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-color" style="background:#e74c3c;"></span> Attractions</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#3498db;"></span> Museums</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#9b59b6;"></span> Hotels</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#e67e22;"></span> Restaurants</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#1abc9c;"></span> Cafes</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#f39c12;"></span> Viewpoints</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#27ae60;"></span> Parks</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#8e44ad;"></span> Bars</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#2c3e50;"></span> Hostels</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#d35400;"></span> Shopping</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Globe Container -->
+        <div id="cesiumContainer"></div>
+
+        <!-- Info Panel -->
+        <div id="info-panel" class="hidden">
+            <button id="close-info">&times;</button>
+            <div id="info-content"></div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Loading POIs...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container"></div>
+    </div>
+
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

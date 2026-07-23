@@ -1,0 +1,11 @@
+Model Information:
+* title:	Silkstone Barbie Doll Rigged
+* source:	https://sketchfab.com/3d-models/silkstone-barbie-doll-rigged-6bee3fd2a37f4cee98b5ed7174c81692
+* author:	Drothari (https://sketchfab.com/Drothari)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Silkstone Barbie Doll Rigged" (https://sketchfab.com/3d-models/silkstone-barbie-doll-rigged-6bee3fd2a37f4cee98b5ed7174c81692) by Drothari (https://sketchfab.com/Drothari) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
